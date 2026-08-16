@@ -21,13 +21,15 @@
 
 ## 安装
 
-### 方式一：从release下载压缩包到本地插件目录
+### 方式一（推荐）：通过release的custom_music_list.neko-plugin文件
 
-若你是从steam下载的v0.9.0版本，则在release中下载压缩包，解压到neko的plugins目录（C:\Users\ Yourname \AppData\Local\N.E.K.O\plugins）（解压出来一定是个文件夹！），然后steam→浏览本地文件→resources→bin→static→jukebox，在这个路径下用release里提供的music_ui.js替换原来的文件，以修复v0.9.0不能正常播放本地音乐的问题（官方说后续的版本会修复了），然后重启neko，手动关闭再开启插件就能用了。
+在neko插件界面导入custom_music_list.neko-plugin文件，打开插件，若播放存在问题则打开neko目录→resources→bin→static→jukebox，在这个路径下用release里提供的music_ui.js替换原来的文件，以修复nekov0.9.0不能正常播放本地音乐的问题（官方说后续的版本会修复了），然后重启neko，手动关闭再开启插件就能用了。
 
-### 方式二：通过release的custom_music_list.neko-plugin文件
 
-在neko插件界面导入该文件，开关一次插件，若播放存在问题参考方式一的music_ui.js文件替换解决方式。
+### 方式二：从release下载压缩包到本地插件目录
+
+若你是从steam下载的，且.neko-plugin文件导入失败，则在release中下载压缩包，解压到neko的plugins目录（C:\Users\ Yourname \AppData\Local\N.E.K.O\plugins）（解压出来一定是个文件夹！），然后参考方式一的替换music_ui.js方法进行替换。
+
 
 ## 使用
 
