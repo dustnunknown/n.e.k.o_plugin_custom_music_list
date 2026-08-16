@@ -2,18 +2,16 @@
 
 一个面向 [N.E.K.O](https://github.com/Project-N-E-K-O/N.E.K.O) 的插件：把网易云音乐、QQ音乐、B站的歌单/收藏夹导出为文本，统一管理已导入的歌曲文件，并支持让猫娘用 LLM 工具直接点歌、轮播。三平台的播放列表互通。
 
-> 仓库命名遵循 N.E.K.O 插件市场规范：`n.e.k.o_plugin_<plugin_id>`。
-
 ## 功能特性
 
 - **网易云音乐**
-  - 扫码 / MUSIC_U cookie 登录（扫码已被网易云风控，推荐 cookie 方式）
+  - MUSIC_U cookie 登录（扫码已被网易云风控，改为 cookie 方式）
   - 查看「我喜欢的音乐」与所有收藏/创建的歌单（支持分页、搜索）
   - 一键导出歌单内全部歌曲名 + 作者到 `txt`（按歌单名命名）
 - **QQ音乐**
   - 通过公开接口读取歌单，导出歌单曲目到 `txt` / `json`
 - **B站（哔哩哔哩）**
-  - 下载收藏夹 / 音频区的音乐到本地，自动解析时长（修复过 fragmented MP4 时长误读为几千几万秒的问题）
+  - 下载收藏夹 / 音频区的音乐到本地，自动解析时长
 - **歌曲管理 & 播放列表**
   - 统一管理已导入的歌曲文件（来源、时长、路径）
   - 生成播放列表，支持在对话中让猫娘播放
@@ -23,14 +21,9 @@
 
 ## 安装
 
-### 方式一：从 GitHub 克隆到本地插件目录
+### 方式一：从 release 下载到本地插件目录
 
-```bash
-# 进入你的 N.E.K.O 插件目录（plugin/plugins/ 或宿主配置的 plugins 根）
-git clone https://github.com/dustnunknown/n.e.k.o_plugin_custom_music_list.git custom_music_list
-```
-
-克隆后文件夹名需与 `plugin.toml` 中的 `id`（即 `custom_music_list`）一致，否则 profile 查找和工具链可能失效。
+若你是从steam下载的v0.9.0版本，则在release中下载压缩包，解压到neko的plugins目录（C:\Users\ Yourname \AppData\Local\N.E.K.O\plugins）（解压出来一定是个文件夹！），然后steam→浏览本地文件→resources→bin→static→jukebox，在这个路径下用release里提供的music_ui.js替换原来的文件，以修复v0.9.0不能正常播放本地音乐的问题（官方说后续的版本会修复了），然后重启neko，手动关闭再开启插件就能用了。
 
 ### 方式二：N.E.K.O 插件市场
 
@@ -43,7 +36,7 @@ git clone https://github.com/dustnunknown/n.e.k.o_plugin_custom_music_list.git c
 3. **QQ音乐 / B站**：按面板提示操作；B站下载需要对应账号的 cookie（自动持久化到 `data/` 下的 `bili_cookie.json`）。
 4. **点歌**：在对话里直接说「播放 xxx」，猫娘会调用 LLM 工具从已导入歌曲中匹配并推送到播放界面。
 
-> 登录态（cookie / session）仅保存在插件本地 `data/` 目录，**不会**随仓库提交（见 `.gitignore`）。
+> 登录态（cookie / session）仅保存在插件本地 `data/` 目录。
 
 ## 配置（plugin.toml）
 
@@ -67,16 +60,6 @@ custom_music_list/
 │   └── index.html
 ├── data/                    # 运行时数据（cookie / 导出文件 / 下载歌曲），不提交
 └── .github/workflows/       # N.E.K.O 官方 verify / release 流水线
-```
-
-## 开发 & 发布
-
-```bash
-# 在 N.E.K.O 本体目录下做发布前校验
-uv run neko-plugin check --release /path/to/n.e.k.o_plugin_custom_music_list
-
-# 打 tag 触发 GitHub Actions 自动发布
-git tag v0.3.0 && git push --tags
 ```
 
 ## 许可证
