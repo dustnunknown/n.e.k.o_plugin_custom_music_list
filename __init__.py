@@ -12,33 +12,31 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import os
 import random
 import re
-import os
-import shutil
 import struct
 import sys
 import time
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any, List, Mapping, Optional
+from typing import Annotated, Any, List, Optional
 from urllib.parse import ParseResult, urlencode, urlparse
 
 import httpx
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-
 from plugin.sdk.plugin import (
-    NekoPluginBase,
-    neko_plugin,
-    plugin_entry,
-    lifecycle,
-    llm_tool,
-    Ok,
     Err,
+    NekoPluginBase,
+    Ok,
     SdkError,
     get_plugin_logger,
+    lifecycle,
+    llm_tool,
+    neko_plugin,
+    plugin_entry,
 )
 
 _BASE = "https://music.163.com"
@@ -1876,7 +1874,6 @@ class CustomMusicListPlugin(NekoPluginBase):
         关键：清空 self._autoplay_task，这样旧调度器的 finally 检查到
         task 不匹配就不会清空新调度器的状态。"""
         async with self._autoplay_lock:
-            old_task = self._autoplay_task
             self._autoplay_task = None
             if self._autoplay_cancel_event is not None:
                 try:
@@ -2024,7 +2021,7 @@ class CustomMusicListPlugin(NekoPluginBase):
             "message": (
                 f"自动下一首：{'开启' if self._playlist_autoplay_on else '关闭'}；"
                 + (f"调度中，剩余 {round(remaining,0)} 秒（总 {round(total,0)} 秒）" if scheduler_running else "未启动调度")
-                + (f"，已暂停" if paused else "")
+                + ("，已暂停" if paused else "")
             ),
         })
 
@@ -3969,9 +3966,12 @@ class CustomMusicListPlugin(NekoPluginBase):
                     if not stored:
                         continue
                     score = 0
-                    if needle_t == s_title: score += 100
-                    elif needle_t in s_title: score += 50
-                    if needle_a and needle_a in s_artist: score += 40
+                    if needle_t == s_title:
+                        score += 100
+                    elif needle_t in s_title:
+                        score += 50
+                    if needle_a and needle_a in s_artist:
+                        score += 40
                     fp = self._uploads_dir() / stored
                     if fp.is_file() and score > best_score:
                         best_score = score

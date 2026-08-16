@@ -31,6 +31,7 @@ B站音乐搜索下载器
 import argparse
 import hashlib
 import hmac
+import importlib.util
 import json
 import math
 import os
@@ -495,11 +496,8 @@ class BiliMusicDownloader:
 
 def _check_yt_dlp() -> bool:
     """yt-dlp 模块或命令行任一可用即可"""
-    try:
-        import yt_dlp  # noqa: F401
+    if importlib.util.find_spec("yt_dlp") is not None:
         return True
-    except ImportError:
-        pass
     try:
         subprocess.run(["yt-dlp", "--version"],
                        capture_output=True, check=True)
@@ -718,7 +716,7 @@ def main():
             except ValueError:
                 idx = 0
 
-    print(f"\n[3/3] 下载音频:")
+    print("\n[3/3] 下载音频:")
     out_dir = args.output or os.path.join(os.getcwd(), "downloads")
 
     # 第一个失败自动降级尝试下一个
@@ -729,7 +727,7 @@ def main():
         fname = f"{song} - {artist}"
         if dl.download(cand["url"], out_dir, name_hint=fname):
             print(f"\n  ✔ 下载完成! 文件保存在: {os.path.abspath(out_dir)}")
-            print(f"__OK__")
+            print("__OK__")
             return
         print("  ✘ 该视频下载失败，尝试下一个候选...")
 

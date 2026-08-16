@@ -18,11 +18,10 @@ daga.cc 音乐解析工具
   python music_parser.py 1489958235 netease --download   # 下载 mp3
 """
 
-import sys
-import os
-import json
-import time
 import argparse
+import json
+import os
+import time
 from urllib.parse import urlencode
 
 try:
@@ -30,8 +29,8 @@ try:
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
-    import urllib.request
     import urllib.error
+    import urllib.request
 
 # ============================================================
 # 配置
@@ -239,7 +238,7 @@ def interactive_mode():
         else:
             filter_type = "name"
 
-        print(f"\n请选择平台 (直接回车默认 netease):")
+        print("\n请选择平台 (直接回车默认 netease):")
         for i, t in enumerate(SUPPORTED_TYPES):
             print(f"  {i+1}. {t}", end="")
             if (i + 1) % 5 == 0:
@@ -311,7 +310,7 @@ def interactive_mode():
 
 def parse_url(url_str):
     """从 daga.cc URL 中提取 id 和 type。"""
-    from urllib.parse import urlparse, parse_qs
+    from urllib.parse import parse_qs, urlparse
     parsed = urlparse(url_str)
     params = parse_qs(parsed.query)
     song_id = params.get("id", [None])[0]
@@ -402,7 +401,7 @@ def main():
 
         results = parse_music(song, args.type, filter_type=filter_type)
         if not results:
-            print(f"  [!] 未找到结果")
+            print("  [!] 未找到结果")
             continue
 
         for i, item in enumerate(results, 1):
