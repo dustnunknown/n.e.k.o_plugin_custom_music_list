@@ -30,3 +30,6 @@ store.db
 Thumbs.db
 .vscode/
 .idea/
+
+# ── WorkBuddy 内部目录（非插件逻辑，禁止提交）──
+.workbuddy/
