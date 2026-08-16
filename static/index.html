@@ -1,0 +1,2475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:* http://localhost:*">
+  <title>音乐歌单管理</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #333; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    h1 { font-size: 22px; margin-bottom: 16px; }
+    h2 { font-size: 18px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #e0e0e0; }
+    .card { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+    .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 500; }
+    .status-badge.online { background: #e8f5e9; color: #2e7d32; }
+    .status-badge.offline { background: #fbe9e7; color: #c62828; }
+    .status-badge .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .status-badge.online .dot { background: #4caf50; }
+    .status-badge.offline .dot { background: #f44336; }
+
+    button { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: #1976d2; color: #fff; }
+    .btn-success { background: #43a047; color: #fff; }
+    .btn-danger { background: #e53935; color: #fff; }
+    .btn-ghost { background: transparent; border: 1px solid #ddd; color: #666; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-icon { padding: 4px 8px; font-size: 16px; line-height: 1; background: transparent; border: 1px solid #ddd; border-radius: 4px; }
+
+    input[type="text"], input[type="search"], select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; }
+    input:focus, select:focus { border-color: #1976d2; }
+    input[type="search"] { width: 200px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
+    th { background: #fafafa; font-weight: 600; color: #555; position: sticky; top: 0; }
+    tr:hover { background: #f9f9f9; }
+    .song-table-wrap { max-height: 500px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; }
+
+    .playlist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+    .playlist-item { padding: 12px; border: 1px solid #eee; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+    .playlist-item:hover { border-color: #1976d2; box-shadow: 0 2px 6px rgba(25,118,210,0.15); }
+    .playlist-item .pl-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .playlist-item .pl-meta { font-size: 12px; color: #888; }
+
+    .pagination { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 12px; }
+    .file-list { display: flex; flex-direction: column; gap: 6px; }
+    .file-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border: 1px solid #eee; border-radius: 6px; cursor: pointer; }
+    .file-item:hover { border-color: #1976d2; background: #f5f9ff; }
+
+    .dropdown { position: relative; display: inline-block; }
+    .dropdown-menu { display: none; position: absolute; right: 0; top: 100%; background: #fff; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100; min-width: 140px; }
+    .dropdown-menu.show { display: block; }
+    .dropdown-menu button { display: block; width: 100%; text-align: left; padding: 8px 14px; border: none; border-radius: 0; font-size: 13px; background: #fff; color: #333; }
+    .dropdown-menu button:first-child { border-top-left-radius: 6px; border-top-right-radius: 6px; }
+    .dropdown-menu button:last-child { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
+    .dropdown-menu button:hover { background: #f0f0f0; }
+    .dropdown-menu button.danger { color: #e53935; }
+
+    .path-cell { font-size: 12px; color: #999; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .path-cell.empty { color: #ff9800; font-style: italic; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; justify-content: center; align-items: center; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #fff; border-radius: 10px; padding: 24px; min-width: 400px; max-width: 90vw; }
+    .modal h3 { margin-bottom: 16px; }
+    .modal .row { margin-bottom: 16px; }
+    .modal input { width: 100%; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 24px; border-radius: 6px; font-size: 14px; z-index: 300; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    .toast.error { background: #e53935; }
+    .toast.success { background: #43a047; }
+    .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid #ddd; border-top-color: #1976d2; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hint { font-size: 13px; color: #888; margin-top: 6px; line-height: 1.6; }
+    .steps { background: #f5f9ff; border-radius: 6px; padding: 12px 16px; margin-top: 10px; }
+    .steps ol { padding-left: 20px; }
+    .steps li { font-size: 13px; color: #555; margin-bottom: 4px; }
+    .hidden { display: none !important; }
+    .tab-btn { padding: 10px 20px; border: none; background: transparent; font-size: 15px; cursor: pointer; color: #888; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; font-weight: 500; }
+    .tab-btn:hover { color: #1976d2; }
+    .tab-btn.tab-active { color: #1976d2; border-bottom-color: #1976d2; font-weight: 600; }
+    .fav-folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .fav-folder-item { padding: 14px; border: 1px solid #eee; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+    .fav-folder-item:hover { border-color: #1976d2; box-shadow: 0 2px 6px rgba(25,118,210,0.15); }
+    .fav-folder-item.active { border-color: #1976d2; background: #f5f9ff; }
+    .fav-folder-item .ff-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .fav-folder-item .ff-meta { font-size: 12px; color: #888; }
+    .fav-video-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+    .fav-video-row:hover { background: #f9f9f9; }
+    .fav-video-row .fv-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fav-video-row .fv-upper { color: #1976d2; font-size: 12px; white-space: nowrap; }
+    .fav-video-row .fv-dur { color: #999; font-size: 12px; white-space: nowrap; }
+    .fav-video-row .fv-status { font-size: 12px; white-space: nowrap; min-width: 60px; text-align: right; }
+    .bili-fav-progress { margin-top: 12px; padding: 12px 14px; background: #f7fbff; border: 1px solid #bcd8ff; border-radius: 8px; }
+    .song-id-tag { display: inline-block; margin-left: 6px; padding: 1px 6px; font-size: 11px; color: #666; background: #f0f0f0; border: 1px solid #e0e0e0; border-radius: 10px; }
+    .dropdown-menu button:disabled { opacity: 0.45; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🎵 音乐歌单管理 <span style="font-size:12px;color:#999;font-weight:normal;">v0.6.0-multi</span></h1>
+
+  <!-- 页面切换 Tabs -->
+  <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #e0e0e0;">
+    <button class="tab-btn tab-active" onclick="switchPage('main')" id="tab-main">🎵 网易云歌单</button>
+    <button class="tab-btn" onclick="switchPage('qq')" id="tab-qq">QQ音乐歌单</button>
+    <button class="tab-btn" onclick="switchPage('bili-fav')" id="tab-bili-fav">📺 B站收藏夹</button>
+  </div>
+
+  <!-- ============ 主页面 ============ -->
+  <div id="page-main">
+
+  <!-- 登录区 -->
+  <div class="card">
+    <h2>登录管理</h2>
+    <div class="row">
+      <span id="loginStatus" class="status-badge offline"><span class="dot"></span>未登录</span>
+      <button class="btn-ghost btn-sm" onclick="refreshLoginStatus()">刷新状态</button>
+      <button class="btn-primary btn-sm" onclick="startBrowserLogin()">浏览器登录（推荐）</button>
+      <button class="btn-ghost btn-sm" onclick="showCookieLogin()">Cookie 登录</button>
+      <button class="btn-danger btn-sm hidden" id="logoutBtn" onclick="doLogout()">登出</button>
+    </div>
+    <div id="loginHint" class="hint"></div>
+    <div id="cookieLoginForm" class="hidden" style="margin-top:10px;">
+      <div class="row">
+        <input type="text" id="cookieInput" placeholder="粘贴 MUSIC_U cookie 值" style="flex:1;min-width:300px;">
+        <button class="btn-success btn-sm" onclick="doCookieLogin()">登录</button>
+      </div>
+      <div class="hint">获取方法：浏览器打开 music.163.com 登录后，F12 → Application → Cookies → 复制 MUSIC_U 的值</div>
+    </div>
+  </div>
+
+  <!-- 歌单列表区 -->
+  <div class="card">
+    <h2>我的歌单</h2>
+    <div class="row">
+      <input type="search" id="playlistSearch" placeholder="搜索歌单名..." onkeydown="if(event.key==='Enter')loadPlaylists()">
+      <button class="btn-primary btn-sm" onclick="loadPlaylists()">搜索</button>
+      <button class="btn-ghost btn-sm" onclick="loadPlaylists(true)">刷新缓存</button>
+      <span id="playlistPageInfo" style="font-size:13px;color:#888;margin-left:auto;"></span>
+    </div>
+    <div id="playlistGrid" class="playlist-grid" style="margin-top:12px;">
+      <p class="hint">请先登录，然后点击「搜索」获取歌单列表</p>
+    </div>
+    <div id="playlistPagination" class="pagination hidden">
+      <button class="btn-ghost btn-sm" onclick="prevPage()">上一页</button>
+      <span id="pageInfo" style="font-size:13px;"></span>
+      <button class="btn-ghost btn-sm" onclick="nextPage()">下一页</button>
+    </div>
+  </div>
+
+  <!-- 歌曲管理区 -->
+  <div class="card">
+    <h2>歌曲管理</h2>
+    <div class="row">
+      <select id="fileSelect" onchange="onFileSelected()" style="flex:1;min-width:200px;">
+        <option value="">选择已导出的 txt 文件...</option>
+      </select>
+      <button class="btn-ghost btn-sm" onclick="loadFileList()">刷新文件列表</button>
+    </div>
+    <div id="songListInfo" class="hint"></div>
+    <div id="songTableWrap" class="song-table-wrap hidden" style="margin-top:12px;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:50px;">序号</th>
+            <th>歌曲名</th>
+            <th>歌手</th>
+            <th>音源路径</th>
+            <th style="width:80px;">导入</th>
+            <th style="width:60px;">播放</th>
+            <th style="width:80px;">加入列表</th>
+            <th style="width:50px;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="songTableBody"></tbody>
+      </table>
+    </div>
+    <div class="row" style="margin-top:12px;">
+      <button class="btn-success btn-sm hidden" id="addSongBtn" onclick="showAddSongModal()">+ 新增歌曲</button>
+      <button class="btn-primary btn-sm hidden" id="saveBtn" onclick="saveSongList()">💾 保存</button>
+      <button class="btn-primary btn-sm hidden" id="batchDownloadBtn" onclick="batchDownloadAll('netease')">⬇ 网易云解析批量下载</button>
+      <button class="btn-primary btn-sm hidden" id="batchDownloadBiliBtn" onclick="batchDownloadAll('bili')">⬇ B站解析批量下载</button>
+      <button class="btn-primary btn-sm hidden" id="batchDownloadAutoBtn" onclick="batchDownloadAll('auto')">⬇ 自动解析批量下载</button>
+      <button class="btn-primary btn-sm hidden" id="batchAddPlaylistBtn" onclick="batchAddToPlaylist()">📋 批量加入播放列表</button>
+    </div>
+    <div class="row hidden" id="downloadTipRow" style="margin-top:6px;">
+      <span style="font-size:12px;color:#e67e22;line-height:1.6;">
+        ⚠ 自动下载的音源不一定准确（尤其是B站搜索结果）。如果某首歌不是想要的版本，请手动导入正确的音频路径；下载失败的歌曲可在稍后再次点击批量下载重试。
+      </span>
+    </div>
+    <!-- 下载进度面板 -->
+    <div id="downloadPanel" class="download-panel hidden" style="margin-top:12px;padding:12px 14px;background:#f7fbff;border:1px solid #bcd8ff;border-radius:8px;">
+      <div style="font-weight:600;margin-bottom:8px;">📥 下载进度 <span id="dlProgressText" style="font-weight:500;color:#335;">0 / 0 （0%）</span></div>
+      <div style="background:#e4efff;border-radius:6px;height:10px;overflow:hidden;margin-bottom:8px;">
+        <div id="dlProgressBar" style="background:linear-gradient(90deg,#4f8cff,#3a6dff);height:100%;width:0%;transition:width .3s;"></div>
+      </div>
+      <div id="dlCurrentInfo" style="font-size:13px;color:#555;">准备中...</div>
+      <div style="margin-top:8px;font-size:13px;">
+        <span style="color:#2f9a44;font-weight:500;">✅ 成功 <span id="dlSuccessCount">0</span></span>
+        <span style="margin:0 10px;color:#ccc;">|</span>
+        <span style="color:#c9362c;font-weight:500;">❌ 失败 <span id="dlFailedCount">0</span></span>
+        <button class="btn-danger btn-sm hidden" id="cancelDownloadBtn" onclick="cancelBatchDownload()" style="margin-left:16px;">✋ 取消下载</button>
+      </div>
+      <div id="dlFailedList" class="hidden" style="margin-top:10px;padding:10px 12px;background:#fff2f2;border:1px dashed #e49b9b;border-radius:6px;font-size:13px;max-height:160px;overflow:auto;"></div>
+    </div>
+  </div>
+</div><!-- /page-main -->
+
+<!-- ============ QQ音乐页面 ============ -->
+<div id="page-qq" class="hidden">
+
+  <!-- QQ音乐登录区 -->
+  <div class="card">
+    <h2>QQ音乐登录管理</h2>
+    <div class="row">
+      <span id="qqLoginStatus" class="status-badge offline"><span class="dot"></span>未登录</span>
+      <button class="btn-ghost btn-sm" onclick="checkQqCookie()">检查状态</button>
+      <button class="btn-ghost btn-sm" onclick="document.getElementById('qqCookieForm').classList.toggle('hidden')">输入 Cookie</button>
+    </div>
+    <div id="qqCookieForm" class="hidden" style="margin-top:10px;">
+      <div class="row">
+        <input type="text" id="qqUinInput" placeholder="QQ号 (uin)" style="flex:1;min-width:150px;">
+        <input type="text" id="qqKeystInput" placeholder="qm_keyst cookie 值" style="flex:2;min-width:300px;">
+        <button class="btn-success btn-sm" onclick="saveQqCookie()">保存</button>
+      </div>
+      <div class="hint">
+        获取方法：<br>
+        1. 浏览器打开 <b>y.qq.com</b> 登录QQ音乐<br>
+        2. F12 → Application → Cookies → 找到 <b>uin</b> 和 <b>qm_keyst</b> 的值<br>
+        3. 分别复制粘贴到上方输入框<br>
+        注意：qm_keyst 有有效期，过期后需重新获取。
+      </div>
+    </div>
+  </div>
+
+  <!-- QQ音乐歌单列表区 -->
+  <div class="card">
+    <h2>我的歌单</h2>
+    <div class="row">
+      <button class="btn-primary btn-sm" onclick="loadQqPlaylists()" id="loadQqPlaylistsBtn">📦 获取歌单列表</button>
+      <span id="qqPlaylistInfo" style="font-size:13px;color:#888;margin-left:auto;"></span>
+    </div>
+    <div id="qqPlaylistGrid" class="playlist-grid" style="margin-top:12px;">
+      <p class="hint">点击上方按钮获取QQ音乐歌单列表</p>
+    </div>
+  </div>
+
+  <!-- QQ音乐歌曲管理区 -->
+  <div class="card">
+    <h2>歌曲管理</h2>
+    <div class="row">
+      <select id="qqFileSelect" onchange="onQqFileSelected()" style="flex:1;min-width:200px;">
+        <option value="">选择已导出的 txt 文件...</option>
+      </select>
+      <button class="btn-ghost btn-sm" onclick="loadQqFileList()">刷新文件列表</button>
+    </div>
+    <div id="qqSongListInfo" class="hint"></div>
+    <div id="qqSongTableWrap" class="song-table-wrap hidden" style="margin-top:12px;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:50px;">序号</th>
+            <th>歌曲名</th>
+            <th>歌手</th>
+            <th>音源路径</th>
+            <th style="width:80px;">导入</th>
+            <th style="width:60px;">播放</th>
+            <th style="width:80px;">加入列表</th>
+            <th style="width:50px;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="qqSongTableBody"></tbody>
+      </table>
+    </div>
+    <div class="row" style="margin-top:12px;">
+      <button class="btn-success btn-sm hidden" id="qqAddSongBtn" onclick="showQqAddSongModal()">+ 新增歌曲</button>
+      <button class="btn-primary btn-sm hidden" id="qqSaveBtn" onclick="saveQqSongList()">💾 保存</button>
+      <button class="btn-primary btn-sm hidden" id="qqBatchDownloadBtn" onclick="batchDownloadQq()">⬇ QQ音乐批量下载</button>
+      <button class="btn-primary btn-sm hidden" id="qqBatchAddPlaylistBtn" onclick="batchAddQqToPlaylist()">📋 批量加入播放列表</button>
+    </div>
+    <!-- 下载进度面板（QQ音乐复用主面板的下载进度，但这里放一个独立引用） -->
+    <div id="qqDownloadPanel" class="hidden" style="margin-top:12px;padding:12px 14px;background:#f7fbff;border:1px solid #bcd8ff;border-radius:8px;">
+      <div style="font-weight:600;margin-bottom:8px;">📥 下载进度 <span id="qqDlProgressText" style="font-weight:500;color:#335;">0 / 0（0%）</span></div>
+      <div style="background:#e4efff;border-radius:6px;height:10px;overflow:hidden;margin-bottom:8px;">
+        <div id="qqDlProgressBar" style="background:linear-gradient(90deg,#4f8cff,#3a6dff);height:100%;width:0%;transition:width .3s;"></div>
+      </div>
+      <div id="qqDlCurrentInfo" style="font-size:13px;color:#555;">准备中...</div>
+      <div style="margin-top:8px;font-size:13px;">
+        <span style="color:#2f9a44;font-weight:500;">✅ 成功 <span id="qqDlSuccessCount">0</span></span>
+        <span style="margin:0 10px;color:#ccc;">|</span>
+        <span style="color:#c9362c;font-weight:500;">❌ 失败 <span id="qqDlFailedCount">0</span></span>
+        <button class="btn-danger btn-sm hidden" id="cancelQqDownloadBtn" onclick="cancelBatchDownload()" style="margin-left:16px;">✋ 取消下载</button>
+      </div>
+      <div id="qqDlFailedList" class="hidden" style="margin-top:10px;padding:10px 12px;background:#fff2f2;border:1px dashed #e49b9b;border-radius:6px;font-size:13px;max-height:160px;overflow:auto;"></div>
+    </div>
+  </div>
+
+</div><!-- /page-qq -->
+
+<!-- ============ B站收藏夹页面 ============ -->
+<div id="page-bili-fav" class="hidden">
+
+  <!-- B站 Cookie 管理 -->
+  <div class="card">
+    <h2>B站登录管理</h2>
+    <div class="row">
+      <span id="biliLoginStatus" class="status-badge offline"><span class="dot"></span>未登录</span>
+      <button class="btn-ghost btn-sm" onclick="checkBiliCookie()">检查状态</button>
+      <button class="btn-ghost btn-sm" onclick="document.getElementById('biliCookieForm').classList.toggle('hidden')">输入 SESSDATA</button>
+    </div>
+    <div id="biliCookieForm" class="hidden" style="margin-top:10px;">
+      <div class="row">
+        <input type="text" id="biliSessdataInput" placeholder="粘贴 SESSDATA cookie 值" style="flex:1;min-width:300px;">
+        <button class="btn-success btn-sm" onclick="saveBiliCookie()">保存</button>
+      </div>
+      <div class="hint">
+        获取方法：浏览器打开 bilibili.com 登录后，F12 → Application → Cookies → 复制 SESSDATA 的值<br>
+        注意：SESSDATA 有有效期，过期后需重新获取。
+      </div>
+    </div>
+  </div>
+
+  <!-- 收藏夹列表 -->
+  <div class="card">
+    <h2>我的收藏夹</h2>
+    <div class="row">
+      <button class="btn-primary btn-sm" onclick="loadBiliFavLists()" id="loadFavListsBtn">📦 获取收藏夹列表</button>
+      <span id="biliFavUserInfo" style="font-size:13px;color:#888;margin-left:auto;"></span>
+    </div>
+    <div id="biliFavFolderGrid" class="fav-folder-grid" style="margin-top:12px;">
+      <p class="hint">点击上方按钮获取收藏夹列表</p>
+    </div>
+  </div>
+
+  <!-- 收藏夹视频列表 -->
+  <div class="card hidden" id="biliFavVideosCard">
+    <h2 id="biliFavVideosTitle">收藏夹视频</h2>
+    <div class="row">
+      <button class="btn-success btn-sm" onclick="exportAllFavToTxt()" id="exportAllFavBtn">📄 导出全部到txt</button>
+      <button class="btn-ghost btn-sm" onclick="selectAllFavVideos()">全选/取消全选</button>
+      <button class="btn-primary btn-sm hidden" onclick="exportSelectedFavToTxt()" id="exportSelectedFavBtn">📄 导出选中到txt</button>
+      <span id="biliFavVideoCount" style="font-size:13px;color:#888;margin-left:auto;"></span>
+    </div>
+    <div class="hint" style="margin-top:6px;">
+      💡 选择收藏夹后点击「导出到txt」，导出后在下方「歌曲管理」中选择对应文件即可批量下载和管理。
+    </div>
+    <!-- 视频列表 -->
+    <div id="biliFavVideoList" style="margin-top:12px;max-height:500px;overflow-y:auto;border:1px solid #eee;border-radius:6px;"></div>
+  </div>
+
+  <!-- B站收藏夹歌曲管理 -->
+  <div class="card">
+    <h2>B站收藏夹歌曲管理</h2>
+    <div class="row">
+      <select id="biliFavFileSelect" onchange="onBiliFavFileSelected()" style="flex:1;min-width:200px;">
+        <option value="">选择已保存的歌单...</option>
+      </select>
+      <button class="btn-ghost btn-sm" onclick="loadBiliFavFileList()">🔄 刷新</button>
+      <button class="btn-success btn-sm hidden" id="biliFavSaveBtn" onclick="saveBiliFavSongs()">💾 保存</button>
+      <button class="btn-ghost btn-sm hidden" id="biliFavAddSongBtn" onclick="openBiliFavAddSongModal()">➕ 添加歌曲</button>
+      <button class="btn-primary btn-sm hidden" id="biliFavBatchDownloadBtn" onclick="batchDownloadBiliFav()">⬇ 批量下载</button>
+      <button class="btn-primary btn-sm hidden" id="biliFavBatchAddPlaylistBtn" onclick="batchAddBiliFavToPlaylist()">➕ 全部加入播放列表</button>
+    </div>
+    <div id="biliFavSongListInfo" style="font-size:13px;color:#888;margin-top:6px;">选择歌单或导出收藏夹后，歌曲会显示在这里</div>
+    <div class="song-table-wrap hidden" id="biliFavSongTableWrap" style="margin-top:8px;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40px;">#</th>
+            <th>歌曲</th>
+            <th>UP主</th>
+            <th style="width:180px;">音源路径</th>
+            <th style="width:50px;">导入</th>
+            <th style="width:50px;">播放</th>
+            <th style="width:70px;">+列表</th>
+            <th style="width:40px;">⋯</th>
+          </tr>
+        </thead>
+        <tbody id="biliFavSongTableBody">
+          <tr><td colspan="8" style="text-align:center;color:#999;padding:20px;">暂无歌曲</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- 下载进度面板 -->
+    <div id="biliFavDownloadPanel" class="hidden" style="margin-top:12px;padding:12px 14px;background:#f7fbff;border:1px solid #bcd8ff;border-radius:8px;">
+      <div style="font-weight:600;margin-bottom:8px;">📥 下载进度 <span id="biliFavProgressText" style="font-weight:500;color:#335;">0 / 0（0%）</span></div>
+      <div style="background:#e4efff;border-radius:6px;height:10px;overflow:hidden;margin-bottom:8px;">
+        <div id="biliFavProgressBar" style="background:linear-gradient(90deg,#4f8cff,#3a6dff);height:100%;width:0%;transition:width .3s;"></div>
+      </div>
+      <div id="biliFavCurrentInfo" style="font-size:13px;color:#555;">准备中...</div>
+      <div style="margin-top:8px;font-size:13px;">
+        <span style="color:#2f9a44;font-weight:500;">✅ 成功 <span id="biliFavSuccessCount">0</span></span>
+        <span style="margin:0 10px;color:#ccc;">|</span>
+        <span style="color:#c9362c;font-weight:500;">❌ 失败 <span id="biliFavFailedCount">0</span></span>
+        <button class="btn-danger btn-sm hidden" id="cancelBiliFavDownloadBtn" onclick="cancelBiliFavDownload()" style="margin-left:16px;">✋ 取消下载</button>
+      </div>
+      <div id="biliFavFailedList" class="hidden" style="margin-top:10px;padding:10px 12px;background:#fff2f2;border:1px dashed #e49b9b;border-radius:6px;font-size:13px;max-height:160px;overflow:auto;"></div>
+    </div>
+  </div>
+
+</div><!-- /page-bili-fav -->
+
+<!-- ============ 共享播放列表区（三个页面互通） ============ -->
+<div class="card" id="playlistCard">
+  <h2>播放列表（顺序播放）<span style="font-size:12px;color:#999;font-weight:normal;margin-left:8px;">网易云 · QQ音乐 · B站 互通</span></h2>
+  <div class="row" style="gap:8px;">
+    <button class="btn-ghost btn-sm" onclick="prevPlaylistSong()">⏮ 上一首</button>
+    <button class="btn-success btn-sm" onclick="playPlaylist()">▶ 播放当前首</button>
+    <button class="btn-success btn-sm" onclick="nextPlaylistSong()">⏭ 下一首</button>
+    <button class="btn-ghost btn-sm" onclick="resetPlaylistCursor()">🔁 回到第 1 首</button>
+    <button class="btn-danger btn-sm" onclick="clearPlaylist()">🗑 清空列表</button>
+    <button class="btn-ghost btn-sm" onclick="loadPlaylist()">🔄 刷新</button>
+    <select id="playlistModeSelect" onchange="setPlaylistMode(this.value)" style="font-size:13px;padding:4px 8px;border:1px solid #ccc;border-radius:4px;background:#fff;">
+      <option value="sequential">顺序播放</option>
+      <option value="loop_one">单曲循环</option>
+      <option value="loop_all">列表循环</option>
+      <option value="random">随机播放</option>
+    </select>
+    <span id="playlistInfo" style="font-size:13px;color:#888;margin-left:auto;">空</span>
+  </div>
+  <div id="autoplayPanel" style="margin-top:12px;padding:12px 14px;background:#f2fff7;border:1px solid #aee1c4;border-radius:8px;">
+    <div class="row" style="gap:10px;align-items:center;">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;font-size:13px;font-weight:600;">
+        <input type="checkbox" id="autoplayToggle" onchange="toggleAutoplay()" checked>
+        🔁 自动下一首（音频时长计时）
+      </label>
+      <span id="autoplayStatusText" style="font-size:13px;color:#666;">待命</span>
+      <span style="margin-left:auto;">
+        <button class="btn-ghost btn-sm" onclick="pauseAutoplayTimer()" id="pauseAutoplayBtn">⏸ 暂停计时</button>
+        <button class="btn-ghost btn-sm" onclick="resumeAutoplayTimer()" id="resumeAutoplayBtn" style="display:none;">▶ 恢复计时</button>
+        <button class="btn-ghost btn-sm" onclick="loadAutoplayStatus()">🔄</button>
+      </span>
+    </div>
+    <div id="autoplayProgressWrap" class="hidden" style="margin-top:10px;">
+      <div style="background:#e9f9ef;border-radius:6px;height:8px;overflow:hidden;margin-bottom:4px;">
+        <div id="autoplayProgressBar" style="background:linear-gradient(90deg,#3ab98c,#2c9d73);height:100%;width:0%;transition:width .5s;"></div>
+      </div>
+      <div id="autoplayProgressText" style="font-size:12px;color:#666;">—</div>
+    </div>
+  </div>
+  <div style="margin-top:10px;">
+    <div style="font-size:13px;color:#666;margin-bottom:6px;">
+      💡 <b>自动下一首原理：</b>Neko 没有公开的"某首歌播放完了"回调，所以插件会 <b>按本地音频文件的真实时长启动计时器</b>（mp3/flac/m4a 均支持精确解析），时间一到自动推送下一首。
+      切换上方标签页不会中断播放或重置计时。
+    </div>
+    <table id="playlistTable">
+      <thead>
+        <tr>
+          <th style="width:50px;">#</th>
+          <th>歌曲</th>
+          <th>歌手</th>
+          <th style="width:180px;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="playlistBody">
+        <tr><td colspan="4" style="text-align:center;color:#999;padding:30px;">播放列表为空，快去添加歌曲吧～</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- 新增歌曲弹窗 -->
+<div class="modal-overlay" id="addSongModal">
+  <div class="modal">
+    <h3>新增歌曲</h3>
+    <div class="row">
+      <input type="text" id="newSongName" placeholder="歌曲名" style="flex:1;">
+    </div>
+    <div class="row">
+      <input type="text" id="newSongArtists" placeholder="歌手（多个用 / 分隔）" style="flex:1;">
+    </div>
+    <div class="row">
+      <input type="text" id="newSongPath" placeholder="音源路径（可选）" style="flex:1;">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeAddSongModal()">取消</button>
+      <button class="btn-success" onclick="addSong()">添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- 排序弹窗 -->
+<div class="modal-overlay" id="sortModal">
+  <div class="modal">
+    <h3>移动歌曲</h3>
+    <p style="margin-bottom:12px;font-size:14px;color:#666;">将选中的歌曲移动到指定序号的位置：</p>
+    <div class="row">
+      <span>目标序号：</span>
+      <input type="number" id="sortTargetIndex" min="1" style="width:80px;">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeSortModal()">取消</button>
+      <button class="btn-primary" onclick="confirmSort()">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- B站手动选择下载弹窗 -->
+<div class="modal-overlay" id="biliManualModal">
+  <div class="modal" style="min-width:600px;max-width:90vw;max-height:85vh;overflow-y:auto;">
+    <h3>🎯 B站手动选择音源 <span id="biliManualSongInfo" style="font-size:13px;color:#888;font-weight:normal;"></span></h3>
+    <div class="row" style="gap:8px;align-items:flex-end;">
+      <div style="flex:1;">
+        <label style="font-size:13px;color:#555;display:block;margin-bottom:4px;">搜索关键词</label>
+        <input type="text" id="biliSearchKeyword" placeholder="歌名 歌手" style="width:100%;">
+      </div>
+      <button class="btn-primary btn-sm" onclick="doBiliSearch()" id="biliSearchBtn">🔍 搜索</button>
+    </div>
+    <div id="biliSearchResults" style="margin-top:12px;max-height:300px;overflow-y:auto;"></div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee;">
+      <label style="font-size:13px;color:#555;display:block;margin-bottom:6px;">或者直接输入BV号下载：</label>
+      <div class="row" style="gap:8px;">
+        <input type="text" id="biliBvidInput" placeholder="BV1xx411x7xx 或 https://www.bilibili.com/video/BV..." style="flex:1;">
+        <button class="btn-success btn-sm" onclick="doBiliDownloadByBvid()" id="biliBvidDownloadBtn">⬇ 下载</button>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn-ghost" onclick="closeBiliManualModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PLUGIN_ID = 'custom_music_list';
+let _offset = 0, _limit = 20, _total = 0, _filtered = 0;
+let _currentFile = '', _songs = [];
+let _currentPlaylistName = '';
+
+// ── 通用：调用插件入口 ──
+async function callPlugin(entryId, args = {}, timeoutMs = 60000) {
+  const createResp = await fetch('/runs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plugin_id: PLUGIN_ID, entry_id: entryId, args }),
+  });
+  if (!createResp.ok) throw new Error(`创建任务失败: HTTP ${createResp.status}`);
+  const createData = await createResp.json();
+  const runId = createData.run_id || createData.id;
+  if (!runId) throw new Error('未获取到 run_id');
+
+  const deadline = Date.now() + timeoutMs;
+  let pollDelay = 300;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, pollDelay));
+    pollDelay = Math.min(Math.round(pollDelay * 1.5), 3000);
+    const pollResp = await fetch(`/runs/${runId}`);
+    if (!pollResp.ok) {
+      if ([404,405,501].includes(pollResp.status)) throw new Error(`调用失败: ${pollResp.status}`);
+      continue;
+    }
+    const run = await pollResp.json();
+    if (run.status === 'succeeded') {
+      const exportResp = await fetch(`/runs/${runId}/export`);
+      if (!exportResp.ok) return {};
+      const exportData = await exportResp.json();
+      const items = exportData.items || [];
+      const item = items.find(i => i.type === 'json' && i.json) || items[0];
+      const pluginResp = item ? (item.json || {}) : {};
+      if (pluginResp.success === false || pluginResp.error) {
+        throw new Error(pluginResp.error?.message || pluginResp.message || '插件调用失败');
+      }
+      return pluginResp.data || {};
+    }
+    if (['failed','canceled','timeout'].includes(run.status)) {
+      throw new Error(run.error?.message || run.message || run.status);
+    }
+  }
+  throw new Error('插件调用超时');
+}
+
+function showToast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + type;
+  setTimeout(() => el.className = 'toast ' + type, 3000);
+}
+
+// ── 登录 ──
+async function refreshLoginStatus() {
+  try {
+    const data = await callPlugin('get_login_status', {});
+    const badge = document.getElementById('loginStatus');
+    const hint = document.getElementById('loginHint');
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (data.logged_in) {
+      badge.className = 'status-badge online';
+      badge.innerHTML = '<span class="dot"></span>已登录';
+      hint.textContent = `用户: ${data.nickname || ''} (UID: ${data.uid || ''})`;
+      logoutBtn.classList.remove('hidden');
+      loadPlaylists();
+      loadFileList();
+    } else {
+      badge.className = 'status-badge offline';
+      badge.innerHTML = '<span class="dot"></span>未登录';
+      hint.textContent = '请先登录网易云音乐';
+      logoutBtn.classList.add('hidden');
+    }
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function startBrowserLogin() {
+  try {
+    const data = await callPlugin('start_browser_login', {});
+    const hint = document.getElementById('loginHint');
+    hint.innerHTML = data.message.replace(/\n/g, '<br>');
+    showToast('浏览器已打开，请按提示操作', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function showCookieLogin() {
+  document.getElementById('cookieLoginForm').classList.toggle('hidden');
+}
+
+async function doCookieLogin() {
+  const cookie = document.getElementById('cookieInput').value.trim();
+  if (!cookie) { showToast('请输入 cookie', 'error'); return; }
+  try {
+    const data = await callPlugin('login_with_cookie', { music_u: cookie }, 30000);
+    showToast(`登录成功！欢迎 ${data.nickname}`, 'success');
+    document.getElementById('cookieLoginForm').classList.add('hidden');
+    document.getElementById('cookieInput').value = '';
+    refreshLoginStatus();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function doLogout() {
+  try {
+    await callPlugin('logout', {});
+    showToast('已登出', 'success');
+    refreshLoginStatus();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── 歌单列表 ──
+async function loadPlaylists(refresh = false) {
+  const keyword = document.getElementById('playlistSearch').value.trim();
+  try {
+    const data = await callPlugin('list_playlists', { offset: _offset, limit: _limit, keyword, refresh }, 120000);
+    _total = data.total || 0;
+    _filtered = data.filtered || 0;
+    const grid = document.getElementById('playlistGrid');
+    const items = data.items || [];
+    if (items.length === 0) {
+      grid.innerHTML = '<p class="hint">没有匹配的歌单</p>';
+    } else {
+      grid.innerHTML = items.map(p => `
+        <div class="playlist-item" onclick="exportPlaylist(${p.id}, '${escapeAttr(p.name)}')">
+          <div class="pl-name">${escapeHtml(p.name || '未命名')}</div>
+          <div class="pl-meta">${p.track_count || 0} 首 · ${p.creator || ''} ${p.bookmarked ? '· ❤收藏' : ''}</div>
+          <div style="margin-top:8px;"><button class="btn-primary btn-sm" onclick="event.stopPropagation();exportPlaylist(${p.id},'${escapeAttr(p.name)}')">导出 txt</button></div>
+        </div>
+      `).join('');
+    }
+    document.getElementById('playlistPageInfo').textContent = `共 ${_filtered} 个歌单`;
+    const pagination = document.getElementById('playlistPagination');
+    if (_filtered > _limit) {
+      pagination.classList.remove('hidden');
+      document.getElementById('pageInfo').textContent = `第 ${_offset/_limit+1} / ${Math.ceil(_filtered/_limit)} 页`;
+    } else {
+      pagination.classList.add('hidden');
+    }
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function prevPage() { if (_offset > 0) { _offset -= _limit; loadPlaylists(); } }
+function nextPage() { if (_offset + _limit < _filtered) { _offset += _limit; loadPlaylists(); } }
+
+async function exportPlaylist(id, name) {
+  showToast(`正在导出「${name}」...`);
+  try {
+    const data = await callPlugin('export_playlist', { playlist_id: String(id) }, 120000);
+    const manual = data.manual_preserved || 0;
+    const apiCount = data.api_count || data.song_count || 0;
+    if (manual > 0) {
+      showToast(`已导出「${data.playlist_name}」共 ${data.song_count} 首（网易云 ${apiCount} + 手动保留 ${manual}）`, 'success');
+    } else {
+      showToast(`已导出「${data.playlist_name}」共 ${data.song_count} 首到 txt`, 'success');
+    }
+    loadFileList();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── 文件列表 ──
+async function loadFileList() {
+  try {
+    const data = await callPlugin('list_exported_files', {});
+    const sel = document.getElementById('fileSelect');
+    const files = data.files || [];
+    sel.innerHTML = '<option value="">选择已导出的 txt 文件...</option>' +
+      files.map(f => `<option value="${escapeAttr(f)}">${escapeHtml(f)}</option>`).join('');
+  } catch (e) { /* 忽略 */ }
+}
+
+async function onFileSelected() {
+  const filename = document.getElementById('fileSelect').value;
+  if (!filename) return;
+  try {
+    const data = await callPlugin('load_song_list', { filename }, 30000);
+    _currentFile = filename;
+    _songs = data.songs || [];
+    _currentPlaylistName = data.playlist_name || '';
+    renderSongs(_currentPlaylistName);
+    document.getElementById('addSongBtn').classList.remove('hidden');
+    document.getElementById('saveBtn').classList.remove('hidden');
+    document.getElementById('batchDownloadBtn').classList.remove('hidden');
+    document.getElementById('batchDownloadBiliBtn').classList.remove('hidden');
+    document.getElementById('batchDownloadAutoBtn').classList.remove('hidden');
+    document.getElementById('batchAddPlaylistBtn').classList.remove('hidden');
+    document.getElementById('downloadTipRow').classList.remove('hidden');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── 歌曲表格 ──
+function renderSongs(playlistName) {
+  document.getElementById('songListInfo').textContent = `歌单「${playlistName}」共 ${_songs.length} 首`;
+  const wrap = document.getElementById('songTableWrap');
+  const body = document.getElementById('songTableBody');
+  if (_songs.length === 0) {
+    wrap.classList.remove('hidden');
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;padding:20px;">暂无歌曲</td></tr>';
+    return;
+  }
+  wrap.classList.remove('hidden');
+  body.innerHTML = _songs.map((s, i) => {
+    const hasId = (s.song_id || '').toString().trim() !== '';
+    const isManual = !!s.manual;
+    const manualBadge = isManual ? '<span class="song-id-tag" style="color:#7b57c4;background:#f3edff;border-color:#c9b8f0;" title="手动添加的歌曲，重新导出歌单后会保留">手动</span>' : '';
+    return `
+    <tr data-idx="${i}" ondblclick="playSong(${i})" style="cursor:pointer;">
+      <td>${i + 1}</td>
+      <td>
+        ${escapeHtml(s.name || '')}
+        ${manualBadge}
+        ${hasId ? `<span class="song-id-tag" title="网易云歌曲ID: ${escapeAttr(s.song_id)}">ID: ${escapeHtml(s.song_id)}</span>` : '<span class="song-id-tag" style="color:#c9362c;background:#fff2f2;border-color:#e49b9b;" title="此歌曲没有网易云ID，无法自动下载">无ID</span>'}
+      </td>
+      <td>${escapeHtml(s.artists || '未知')}</td>
+      <td class="path-cell ${s.path ? '' : 'empty'}" title="${escapeAttr(s.path || '')}">${s.path ? escapeHtml(s.path) : '需导入路径'}</td>
+      <td><button class="btn-ghost btn-sm" onclick="importPath(${i})">导入</button></td>
+      <td><button class="btn-success btn-sm" onclick="playSong(${i})" ${s.path ? '' : 'disabled'}>▶</button></td>
+      <td><button class="btn-primary btn-sm" onclick="addToPlaylist(${i})" ${s.path ? '' : 'disabled'} title="添加到播放列表">+ 列表</button></td>
+      <td>
+        <div class="dropdown">
+          <button class="btn-icon" onclick="toggleMenu(${i})">⋯</button>
+          <div class="dropdown-menu" id="menu-${i}">
+            <button onclick="downloadOneById(${i}, 'netease')" ${hasId ? '' : 'disabled'} title="${hasId ? '从网易云解析站下载' : '此歌曲没有 song_id，无法用网易云解析'}">⬇ 网易云解析下载</button>
+            <button onclick="downloadOneById(${i}, 'bili')" title="从B站搜索并下载音源（按歌名+歌手）">⬇ B站解析下载</button>
+            <button onclick="downloadOneById(${i}, 'auto')" title="先尝试网易云，失败再尝试B站">⬇ 自动解析下载</button>
+            <button onclick="openBiliManualModal(${i})" title="手动搜索B站视频，选择正确的音源或输入BV号下载">🎯 B站手动选择下载</button>
+            <button onclick="deleteSong(${i})" class="danger">删除歌曲</button>
+            <button onclick="showSortModal(${i})">移动到...</button>
+          </div>
+        </div>
+      </td>
+    </tr>
+  `;}).join('');
+}
+
+function importPath(idx) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'audio/*,.mp3,.flac,.wav,.ogg,.m4a,.aac,.ape,.wma';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    showToast(`正在上传: ${file.name}...`);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUri = reader.result;
+        const data = await callPlugin('upload_song_file', {
+          audio_base64: dataUri,
+          filename: file.name,
+        }, 60000);
+        _songs[idx].path = data.stored_name;
+        _songs[idx].stored_name = data.stored_name;
+        renderSongs(_currentPlaylistName);
+        showToast(`已导入: ${file.name}`, 'success');
+      };
+      reader.onerror = () => showToast('读取文件失败', 'error');
+      reader.readAsDataURL(file);
+    } catch (e) { showToast(e.message, 'error'); }
+  };
+  input.click();
+}
+
+async function playSong(idx) {
+  if (!_songs[idx] || !_songs[idx].path) { showToast('该歌曲未导入音源，请先导入', 'error'); return; }
+  const song = _songs[idx];
+  showToast(`正在推送: ${song.name}...`);
+  try {
+    const data = await callPlugin('play_song', {
+      title: song.name || '未知歌曲',
+      artist: song.artists || '未知',
+      stored_name: song.path,
+    }, 30000);
+    showToast(data.message || '已推送到 N.E.K.O 播放', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+let _menuOpen = -1;
+function toggleMenu(idx) {
+  if (_menuOpen >= 0) {
+    const old = document.getElementById(`menu-${_menuOpen}`);
+    if (old) old.classList.remove('show');
+  }
+  if (_menuOpen === idx) { _menuOpen = -1; return; }
+  const menu = document.getElementById(`menu-${idx}`);
+  if (menu) menu.classList.add('show');
+  _menuOpen = idx;
+}
+document.addEventListener('click', (e) => {
+  if (_menuOpen >= 0 && !e.target.closest('.dropdown')) {
+    const old = document.getElementById(`menu-${_menuOpen}`);
+    if (old) old.classList.remove('show');
+    _menuOpen = -1;
+  }
+});
+
+function deleteSong(idx) {
+  _songs.splice(idx, 1);
+  _menuOpen = -1;
+  renderSongs(_currentPlaylistName);
+  showToast('已删除', 'success');
+}
+
+// 排序（移动到指定位置）
+let _sortIdx = -1;
+function showSortModal(idx) {
+  _sortIdx = idx;
+  _menuOpen = -1;
+  document.getElementById('sortTargetIndex').value = idx + 1;
+  document.getElementById('sortTargetIndex').max = _songs.length;
+  document.getElementById('sortModal').classList.add('show');
+}
+function closeSortModal() {
+  _sortIdx = -1;
+  document.getElementById('sortModal').classList.remove('show');
+}
+function confirmSort() {
+  if (_sortIdx < 0) return;
+  const target = parseInt(document.getElementById('sortTargetIndex').value) - 1;
+  if (isNaN(target) || target < 0 || target >= _songs.length) {
+    showToast('请输入有效序号', 'error'); return;
+  }
+  const [song] = _songs.splice(_sortIdx, 1);
+  _songs.splice(target, 0, song);
+  closeSortModal();
+  renderSongs(_currentPlaylistName);
+  showToast('已移动', 'success');
+}
+
+// 新增歌曲
+let _addSongTarget = 'main';  // 'main' or 'bili-fav' or 'qq'
+function showAddSongModal() {
+  _addSongTarget = 'main';
+  document.getElementById('newSongName').value = '';
+  document.getElementById('newSongArtists').value = '';
+  document.getElementById('newSongPath').value = '';
+  document.getElementById('addSongModal').classList.add('show');
+}
+function closeAddSongModal() {
+  document.getElementById('addSongModal').classList.remove('show');
+}
+function addSong() {
+  const name = document.getElementById('newSongName').value.trim();
+  if (!name) { showToast('请输入歌曲名', 'error'); return; }
+  const songData = {
+    name,
+    artists: document.getElementById('newSongArtists').value.trim() || '未知',
+    path: document.getElementById('newSongPath').value.trim(),
+    stored_name: document.getElementById('newSongPath').value.trim(),
+    song_id: '',
+    manual: true,
+  };
+  if (_addSongTarget === 'bili-fav') {
+    songData.source = 'bili_fav';
+    _biliFavSongs.push(songData);
+    closeAddSongModal();
+    renderBiliFavSongs();
+    showToast('已添加到B站歌单', 'success');
+  } else if (_addSongTarget === 'qq') {
+    _qqSongs.push(songData);
+    closeAddSongModal();
+    renderQqSongs();
+    showToast('已添加（手动添加）', 'success');
+  } else {
+    _songs.push(songData);
+    closeAddSongModal();
+    renderSongs(_currentPlaylistName);
+    showToast('已添加（手动添加，重新导出歌单后会保留）', 'success');
+  }
+}
+
+// 保存
+async function saveSongList() {
+  if (!_currentFile) { showToast('请先选择文件', 'error'); return; }
+  try {
+    const playlistName = document.getElementById('songListInfo').textContent.match(/「(.+?)」/)?.[1] || '';
+    await callPlugin('save_song_list', {
+      filename: _currentFile,
+      playlist_name: playlistName,
+      songs: JSON.stringify(_songs),
+    }, 30000);
+    showToast('保存成功', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── 工具 ──
+function escapeHtml(text) {
+  if (text == null) return '';
+  const div = document.createElement('div');
+  div.textContent = String(text);
+  return div.innerHTML;
+}
+function escapeAttr(text) {
+  return String(text || '').replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── 播放列表 JS ──
+async function addToPlaylist(idx) {
+  if (!_songs[idx] || !_songs[idx].path) { showToast('该歌曲未导入音源，请先导入', 'error'); return; }
+  const song = _songs[idx];
+  try {
+    const data = await callPlugin('playlist_add', {
+      title: song.name || '未知歌曲',
+      artist: song.artists || '未知艺术家',
+      stored_name: song.path,
+    }, 15000);
+    showToast(data.success ? `已加入播放列表：${song.name}` : '加入失败', data.success ? 'success' : 'error');
+    await loadPlaylist();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function loadPlaylist() {
+  try {
+    const data = await callPlugin('playlist_get', {}, 10000);
+    const songs = data.songs || [];
+    const infoEl = document.getElementById('playlistInfo');
+    const body = document.getElementById('playlistBody');
+    const playing = data.is_playing ? '  🔴播放中' : '';
+    infoEl.textContent = `共 ${songs.length} 首${playing}`;
+    if (songs.length === 0) {
+      body.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#999;padding:30px;">播放列表为空，快去添加歌曲吧～</td></tr>`;
+      return;
+    }
+    body.innerHTML = songs.map((s, i) => `
+      <tr data-id="${escapeAttr(s.id)}">
+        <td>${i + 1}</td>
+        <td>${escapeHtml(s.title || '')}</td>
+        <td>${escapeHtml(s.artist || '')}</td>
+        <td style="white-space:nowrap;">
+          ${i > 0 ? `<button class="btn-ghost btn-sm" onclick="movePlaylistItem('${escapeAttr(s.id)}',-1)">⬆ 上移</button>` : ''}
+          ${i < songs.length - 1 ? `<button class="btn-ghost btn-sm" onclick="movePlaylistItem('${escapeAttr(s.id)}',1)">⬇ 下移</button>` : ''}
+          <button class="btn-danger btn-sm" onclick="removeFromPlaylist('${escapeAttr(s.id)}')">✕ 删除</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) { showToast('加载播放列表失败：' + e.message, 'error'); }
+}
+
+async function removeFromPlaylist(itemId) {
+  try {
+    await callPlugin('playlist_remove', { item_id: itemId }, 10000);
+    showToast('已从播放列表移除', 'success');
+    await loadPlaylist();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function movePlaylistItem(itemId, direction) {
+  try {
+    const data = await callPlugin('playlist_get', {}, 10000);
+    const songs = data.songs || [];
+    let curIdx = -1;
+    for (let i = 0; i < songs.length; ++i) if (songs[i].id === itemId) { curIdx = i; break; }
+    if (curIdx < 0) return;
+    const newIdx = curIdx + (parseInt(direction) || 0);
+    if (newIdx < 0 || newIdx >= songs.length) return;
+    await callPlugin('playlist_move', { item_id: itemId, new_index: newIdx }, 10000);
+    await loadPlaylist();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function playPlaylist() {
+  try {
+    const data = await callPlugin('playlist_play', { start_index: -1 }, 10000);
+    showToast(data.message || '已推送播放', 'success');
+    setTimeout(loadPlaylist, 300);
+    // 启动 autoplay 轮询（如果有调度的话）
+    setTimeout(loadAutoplayStatus, 200);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function nextPlaylistSong() {
+  try {
+    const data = await callPlugin('playlist_next', {}, 10000);
+    showToast(data.message || (data.is_end ? '已经是最后一首啦' : '下一首'), data.is_end ? 'info' : 'success');
+    setTimeout(loadPlaylist, 300);
+    setTimeout(loadAutoplayStatus, 200);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function prevPlaylistSong() {
+  try {
+    const data = await callPlugin('playlist_prev', {}, 10000);
+    showToast(data.message || (data.is_start ? '已经是第一首啦' : '上一首'), data.is_start ? 'info' : 'success');
+    setTimeout(loadPlaylist, 300);
+    setTimeout(loadAutoplayStatus, 200);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function resetPlaylistCursor() {
+  try {
+    const data = await callPlugin('playlist_stop', {}, 10000);
+    showToast(data.message || '已回到第一首', 'success');
+    setTimeout(loadPlaylist, 300);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function clearPlaylist() {
+  try {
+    const data = await callPlugin('playlist_clear', {}, 10000);
+    showToast(`已清空播放列表（共 ${data.cleared_count || 0} 首）`, 'success');
+    await loadPlaylist();
+    await resetPlaylistCursor();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── 批量加入播放列表 ──
+async function batchAddToPlaylist(replace) {
+  if (!_songs || _songs.length === 0) { showToast('请先加载歌曲列表', 'error'); return; }
+  // 统计有音频的数量
+  let withAudio = 0, withoutAudio = 0;
+  for (const s of _songs) {
+    if ((s.stored_name || s.path || '').toString().trim()) withAudio++;
+    else withoutAudio++;
+  }
+  if (withAudio === 0) {
+    showToast(`歌单里一首有音频的都没有（${withoutAudio} 首无音源被跳过），请先「⬇下载」或「导入」音频`, 'error');
+    return;
+  }
+  // 不再用 confirm；replace 参数由按钮传：
+  //   默认（点「批量加入播放列表」）= 追加模式（replace=false）
+  //   如果用户想清空再加入，先点「🗑 清空列表」再点批量加入
+  const doReplace = (replace === true);
+  showToast(doReplace ? '正在清空并加入播放列表...' : '正在追加到播放列表...', 'info');
+  try {
+    const data = await callPlugin('playlist_add_all', {
+      songs: JSON.stringify(_songs),
+      replace: doReplace,
+    }, 30000);
+    showToast(data.message || `共加入 ${data.added_count} 首`, 'success');
+    setTimeout(loadPlaylist, 300);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── 自动下一首开关 & 暂停/恢复 ──
+let _autoplayPollTimer = null;
+
+async function toggleAutoplay() {
+  const on = document.getElementById('autoplayToggle').checked;
+  try {
+    const data = await callPlugin('playlist_autoplay_toggle', { enabled: on }, 10000);
+    showToast(data.message || (on ? '已开启自动下一首' : '已关闭自动下一首'), 'success');
+    await loadAutoplayStatus();
+  } catch (e) { showToast(e.message, 'error'); document.getElementById('autoplayToggle').checked = !on; }
+}
+
+async function pauseAutoplayTimer() {
+  try {
+    const data = await callPlugin('playlist_autoplay_pause_timer', {}, 10000);
+    showToast(data.message || '已暂停', 'success');
+    await loadAutoplayStatus();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function resumeAutoplayTimer() {
+  try {
+    const data = await callPlugin('playlist_autoplay_resume_timer', {}, 10000);
+    showToast(data.message || '已恢复', 'success');
+    await loadAutoplayStatus();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function setPlaylistMode(mode) {
+  try {
+    const data = await callPlugin('playlist_set_mode', { mode }, 10000);
+    showToast(data.message || `已切换模式`, 'success');
+    await loadAutoplayStatus();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── 单曲下载（菜单项，source 决定走 daga 还是 bili 还是 auto） ──
+async function downloadOneById(idx, source) {
+  const s = _songs[idx];
+  if (!s) { showToast('未找到该歌曲', 'error'); return; }
+  const songId = (s.song_id || '').toString().trim();
+  const title = s.name || '未知歌曲';
+  const artist = s.artists || '';
+  // source: netease / bili / auto
+  const src = source || 'netease';
+  // 网易云模式必须有 song_id；bili/auto 模式只要有 title 就能搜
+  if (src === 'netease' && !songId) {
+    showToast(`「${title}」没有网易云 song_id，无法用网易云解析。可用菜单选「B站解析」或「自动解析」`, 'error');
+    return;
+  }
+  showToast(`开始下载「${title}」 (${src})...`, 'info');
+  try {
+    let entry = 'download_song_by_id';
+    let args = { song_id: songId, title, artist };
+    if (src === 'bili') { entry = 'download_song_from_bili'; args = { title, artist }; }
+    else if (src === 'auto') { entry = 'download_song_auto'; args = { song_id: songId, title, artist }; }
+    const data = await callPlugin(entry, args, 600000);  // 最多等 10 分钟
+    _songs[idx] = Object.assign({}, _songs[idx], {
+      path: data.stored_name,
+      stored_name: data.stored_name,
+      song_id: data.song_id || songId,
+    });
+    renderSongs(_currentPlaylistName);
+    showToast(`${data.message || '下载成功'}，记得点「💾保存」`, 'success');
+  } catch (e) {
+    showToast(`下载失败：${e.message}`, 'error');
+  }
+}
+
+// ── B站手动选择音源 ──
+let _biliManualIdx = -1;
+function openBiliManualModal(idx) {
+  _biliManualIdx = idx;
+  _menuOpen = -1;
+  const s = _songs[idx];
+  if (!s) { showToast('未找到该歌曲', 'error'); return; }
+  const title = s.name || '未知歌曲';
+  const artist = s.artists || '';
+  document.getElementById('biliManualSongInfo').textContent = `「${title}」- 「${artist}」`;
+  // 预填搜索关键词
+  document.getElementById('biliSearchKeyword').value = `${title} ${artist}`.trim();
+  document.getElementById('biliBvidInput').value = '';
+  document.getElementById('biliSearchResults').innerHTML = '<div style="text-align:center;color:#999;padding:20px;">点击「搜索」查找B站视频，或直接在下方输入BV号下载</div>';
+  document.getElementById('biliManualModal').classList.add('show');
+}
+
+function closeBiliManualModal() {
+  _biliManualIdx = -1;
+  document.getElementById('biliManualModal').classList.remove('show');
+}
+
+async function doBiliSearch() {
+  if (_biliManualIdx < 0) return;
+  const s = _songs[_biliManualIdx];
+  if (!s) return;
+  const keyword = document.getElementById('biliSearchKeyword').value.trim();
+  if (!keyword) { showToast('请输入搜索关键词', 'error'); return; }
+  // 拆分关键词为歌名和歌手
+  const parts = keyword.split(/\s+/);
+  const title = parts[0] || s.name || '';
+  const artist = parts.slice(1).join(' ') || s.artists || '';
+  const resultsEl = document.getElementById('biliSearchResults');
+  const btn = document.getElementById('biliSearchBtn');
+  btn.disabled = true;
+  btn.textContent = '搜索中...';
+  resultsEl.innerHTML = '<div style="text-align:center;padding:20px;"><span class="loading"></span> 正在搜索B站...</div>';
+  try {
+    const data = await callPlugin('bili_search_videos', { title, artist }, 60000);
+    if (!data.results || data.results.length === 0) {
+      resultsEl.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">未找到搜索结果，试试换个关键词，或直接输入BV号下载</div>';
+      return;
+    }
+    resultsEl.innerHTML = data.results.map((v, i) => {
+      const dur = v.duration || '?';
+      const play = v.play > 0 ? (v.play >= 10000 ? (v.play / 10000).toFixed(1) + '万' : v.play) : '未知';
+      const score = v.score || 0;
+      const scoreBadge = score > 50 ? `<span style="color:#2f9a44;font-weight:600;">★${score.toFixed(0)}</span>` : (score > 20 ? `<span style="color:#e67e22;">${score.toFixed(0)}</span>` : `<span style="color:#999;">${score.toFixed(0)}</span>`);
+      return `
+        <div style="padding:10px 12px;border:1px solid #eee;border-radius:6px;margin-bottom:8px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='#1976d2';this.style.background='#f5f9ff';" onmouseout="this.style.borderColor='#eee';this.style.background='#fff';" onclick="doBiliDownloadByBvidFromSearch('${escapeAttr(v.bvid)}', ${i})">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:500;font-size:13px;margin-bottom:3px;word-break:break-word;">${escapeHtml(v.title || v.bvid)}</div>
+              <div style="font-size:12px;color:#888;">
+                UP: ${escapeHtml(v.author || '未知')} | 时长: ${escapeHtml(dur)} | 播放: ${play}
+              </div>
+            </div>
+            <div style="text-align:right;white-space:nowrap;">
+              ${scoreBadge}
+              <div style="font-size:11px;color:#1976d2;margin-top:4px;">${escapeHtml(v.bvid || '')}</div>
+            </div>
+          </div>
+          <div style="margin-top:6px;">
+            <button class="btn-success btn-sm" onclick="event.stopPropagation();doBiliDownloadByBvidFromSearch('${escapeAttr(v.bvid)}', ${i})">⬇ 下载此视频音源</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    resultsEl.innerHTML = `<div style="text-align:center;color:#c9362c;padding:20px;">搜索失败：${escapeHtml(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 搜索';
+  }
+}
+
+async function doBiliDownloadByBvidFromSearch(bvid, resultIdx) {
+  if (_biliManualIdx < 0) return;
+  const s = _songs[_biliManualIdx];
+  if (!s) return;
+  const title = s.name || '未知歌曲';
+  const artist = s.artists || '';
+  const songId = (s.song_id || '').toString().trim();
+  await _performBiliBvidDownload(bvid, title, artist, songId);
+}
+
+async function doBiliDownloadByBvid() {
+  if (_biliManualIdx < 0) return;
+  const s = _songs[_biliManualIdx];
+  if (!s) return;
+  const bvid = document.getElementById('biliBvidInput').value.trim();
+  if (!bvid) { showToast('请输入BV号', 'error'); return; }
+  const title = s.name || '未知歌曲';
+  const artist = s.artists || '';
+  const songId = (s.song_id || '').toString().trim();
+  await _performBiliBvidDownload(bvid, title, artist, songId);
+}
+
+async function _performBiliBvidDownload(bvid, title, artist, songId) {
+  const btn = document.getElementById('biliBvidDownloadBtn');
+  const searchBtn = document.getElementById('biliSearchBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '下载中...'; }
+  if (searchBtn) searchBtn.disabled = true;
+  showToast(`正在下载B站音源: ${bvid}...`, 'info');
+  try {
+    const data = await callPlugin('bili_download_by_bvid', {
+      bvid: bvid,
+      title: title,
+      artist: artist,
+      song_id: songId,
+    }, 600000);
+    _songs[_biliManualIdx] = Object.assign({}, _songs[_biliManualIdx], {
+      path: data.stored_name,
+      stored_name: data.stored_name,
+    });
+    renderSongs(_currentPlaylistName);
+    showToast(`${data.message || 'B站手动下载成功'}，记得点「💾保存」`, 'success');
+    closeBiliManualModal();
+  } catch (e) {
+    showToast(`B站BV下载失败：${e.message}`, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⬇ 下载'; }
+    if (searchBtn) searchBtn.disabled = false;
+  }
+}
+
+// ── 批量下载全部 + 进度查询 ──
+let _dlPollTimer = null;
+// 统一批量下载入口：source = netease / bili / auto
+async function batchDownloadAll(source) {
+  const src = source || 'netease';
+  if (!_songs || _songs.length === 0) { showToast('歌曲列表为空', 'error'); return; }
+  // 统计待下载目标：netease 必须有 song_id；bili/auto 只要有 title 就行
+  let totalTarget = 0;
+  let skippedNoId = 0;
+  for (const s of _songs) {
+    const sid = (s.song_id || '').toString().trim();
+    const p = (s.stored_name || s.path || '').toString().trim();
+    if (p) continue; // 已导入
+    if (src === 'netease' && !sid) { skippedNoId++; continue; }
+    totalTarget++;
+  }
+  if (totalTarget === 0) {
+    showToast(`没有可下载目标${skippedNoId ? `（${skippedNoId} 首无 song_id 被跳过）` : ''}，请尝试改用 B站解析/自动解析`, 'error');
+    return;
+  }
+  // 禁用所有批量下载按钮，防止并发
+  ['batchDownloadBtn', 'batchDownloadBiliBtn', 'batchDownloadAutoBtn'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.disabled = true;
+  });
+  document.getElementById('downloadPanel').classList.remove('hidden');
+  document.getElementById('cancelDownloadBtn').classList.remove('hidden');
+  // 初始化 UI
+  _updateDlUI({ total: totalTarget, done: 0, success: [], failed: [], current_title: '', current_artist: '', current_index: 0, current_stage: '', running: true, songs: null });
+
+  // ── 启动后台任务（入口 10 秒超时足够，因为只启动，不等待下载） ──
+  let startedOk = false;
+  try {
+    let entry = 'batch_download_songs';
+    let args = { songs: JSON.stringify(_songs), save_filename: '', playlist_name: _currentPlaylistName || '' };
+    if (src === 'bili') { entry = 'batch_download_songs_bili'; }
+    else if (src === 'auto') { entry = 'batch_download_songs_auto'; }
+    const r = await callPlugin(entry, args, 10000);
+    showToast(r.message || '已启动批量下载', r.started === false ? 'info' : 'success');
+    startedOk = true;
+  } catch (e) {
+    showToast('启动批量下载失败：' + e.message, 'error');
+    // 恢复按钮
+    ['batchDownloadBtn', 'batchDownloadBiliBtn', 'batchDownloadAutoBtn'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.disabled = false;
+    });
+    return;
+  }
+
+  // ── 启动轮询进度（每 1.5 秒拉一次） ──
+  if (_dlPollTimer) { clearInterval(_dlPollTimer); _dlPollTimer = null; }
+  let _finishedToastShown = false;
+  _dlPollTimer = setInterval(async () => {
+    try {
+      const cur = await callPlugin('download_status', {}, 5000);
+      _updateDlUI(cur);
+      if (!cur.running) {
+        // 任务结束
+        if (_dlPollTimer) { clearInterval(_dlPollTimer); _dlPollTimer = null; }
+        document.getElementById('cancelDownloadBtn').classList.add('hidden');
+        ['batchDownloadBtn', 'batchDownloadBiliBtn', 'batchDownloadAutoBtn'].forEach(id => {
+          const el = document.getElementById(id); if (el) el.disabled = false;
+        });
+        if (!_finishedToastShown) {
+          _finishedToastShown = true;
+          const sc = (cur.success || []).length;
+          const fc = (cur.failed || []).length;
+          if (fc > 0) showToast(`批量下载完成：✅${sc} ✗${fc}（失败列表见下方面板，记得点「💾保存」）`, 'info');
+          else showToast(`批量下载全部 ${sc} 首成功！记得点「💾保存」把路径写入文件哦~`, 'success');
+        }
+      }
+    } catch (_ignore) {}
+  }, 1500);
+}
+
+function _updateDlUI(st) {
+  if (!st) return;
+  const total = st.total || 0;
+  const done = st.done || 0;
+  const pct = total > 0 ? Math.round(done * 100 / total) : 0;
+  document.getElementById('dlProgressText').textContent = `${done} / ${total} （${pct}%）`;
+  document.getElementById('dlProgressBar').style.width = `${pct}%`;
+  const stage = st.current_stage || '';
+  let stageText = '';
+  if (stage === 'parsing') stageText = '🔍 解析下载链接中...';
+  else if (stage === 'downloading') stageText = '💾 正在下载...';
+  else if (stage === 'done') stageText = '✅ 完成';
+  else if (st.running) stageText = '⚡ 准备中...';
+  else stageText = '待机';
+  const curTitle = st.current_title || '';
+  const curArtist = st.current_artist || '';
+  const curIdx = st.current_index || 0;
+  if (curTitle) {
+    document.getElementById('dlCurrentInfo').textContent =
+      `${stageText} [${curIdx}/${total}]  ${curTitle} - ${curArtist || '未知艺术家'}`;
+  } else {
+    document.getElementById('dlCurrentInfo').textContent = stageText;
+  }
+  const successCount = Array.isArray(st.success) ? st.success.length : 0;
+  const failedList = Array.isArray(st.failed) ? st.failed : [];
+  document.getElementById('dlSuccessCount').textContent = successCount;
+  document.getElementById('dlFailedCount').textContent = failedList.length;
+  const failedListEl = document.getElementById('dlFailedList');
+  if (failedList.length > 0) {
+    failedListEl.classList.remove('hidden');
+    failedListEl.innerHTML =
+      `<div style="font-weight:500;margin-bottom:4px;">❌ 失败列表（下载完成后请自己导入）：</div>` +
+      failedList.map((x, i) =>
+        `<div style="margin:2px 0;">${i+1}. ${escapeHtml(x.title || '未知')} - ${escapeHtml(x.artist || '')} —— <span style="color:#c9362c;">${escapeHtml(x.reason || '')}</span></div>`
+      ).join('');
+  } else {
+    failedListEl.classList.add('hidden');
+    failedListEl.innerHTML = '';
+  }
+  // ── 每下完一首就填一首路径：如果 st.songs 非空，合并回 _songs ──
+  if (Array.isArray(st.songs) && st.songs.length > 0 && _songs && _songs.length > 0) {
+    let changed = false;
+    const newSongs = st.songs;
+    const len = Math.min(_songs.length, newSongs.length);
+    for (let i = 0; i < len; i++) {
+      const ns = newSongs[i] || {};
+      const os = _songs[i] || {};
+      const newStored = (ns.stored_name || ns.path || '').toString().trim();
+      const oldStored = (os.stored_name || os.path || '').toString().trim();
+      if (newStored && newStored !== oldStored) {
+        _songs[i] = Object.assign({}, os, ns, {
+          stored_name: newStored,
+          path: newStored,
+        });
+        changed = true;
+      } else if ((ns.song_id || '').toString().trim() !== (os.song_id || '').toString().trim()) {
+        _songs[i] = Object.assign({}, os, ns);
+        changed = true;
+      }
+    }
+    if (changed) {
+      renderSongs(_currentPlaylistName || '');
+    }
+  }
+}
+
+// 初始化
+refreshLoginStatus();
+loadFileList();
+loadPlaylist();
+loadAutoplayStatus();
+
+// 全局轮询：自动下一首状态（每 2 秒）—— 只有当 scheduler_running=true 时才每 2 秒继续拉；
+// 待命时不轮询，避免 Neko 日志里一直弹成功的 playlist_autoplay_status 响应
+_autoplayPollTimer = setInterval(async () => {
+  try {
+    const st = await callPlugin('playlist_autoplay_status', {}, 5000);
+    // 先更新 UI 一次
+    _applyAutoplayStatus(st);
+    // 没在调度？暂停轮询
+    if (!st.scheduler_running) {
+      if (_autoplayPollTimer) { clearInterval(_autoplayPollTimer); _autoplayPollTimer = null; }
+    }
+  } catch (_ignore) {}
+}, 2000);
+
+// 触发一次：确保当前状态被拉取，然后根据 scheduler_running 自动决定是否继续轮询
+function _kickAutoplayPollIfNeeded() {
+  // 已经在跑就别重复
+  if (_autoplayPollTimer) return;
+  _autoplayPollTimer = setInterval(async () => {
+    try {
+      const st = await callPlugin('playlist_autoplay_status', {}, 5000);
+      _applyAutoplayStatus(st);
+      if (!st.scheduler_running) {
+        if (_autoplayPollTimer) { clearInterval(_autoplayPollTimer); _autoplayPollTimer = null; }
+      }
+    } catch (_ignore) {}
+  }, 2000);
+}
+
+// loadAutoplayStatus：对外入口（play/next/prev 后手动调用用的是这个）
+// 关键修复：点完下一首/上一首后，新调度可能还在 asyncio.create_task 启动中，
+// 第一次拉可能拉到 scheduler_running=false，需要重试几次
+async function loadAutoplayStatus(retriesLeft = 3) {
+  try {
+    const st = await callPlugin('playlist_autoplay_status', {}, 5000);
+    _applyAutoplayStatus(st);
+    if (st.scheduler_running) {
+      _kickAutoplayPollIfNeeded();
+    } else if (st.autoplay_on && retriesLeft > 0) {
+      // 自动下一首开着但调度没启动 → 可能还在启动中，300ms 后重试
+      setTimeout(() => loadAutoplayStatus(retriesLeft - 1), 300);
+    }
+  } catch (_ignore) {}
+}
+
+// 真正的状态渲染函数（之前写在 loadAutoplayStatus 里的）
+function _applyAutoplayStatus(st) {
+  try {
+    document.getElementById('autoplayToggle').checked = !!st.autoplay_on;
+    document.getElementById('pauseAutoplayBtn').style.display = (st.scheduler_running && !st.paused) ? '' : 'none';
+    document.getElementById('resumeAutoplayBtn').style.display = (st.scheduler_running && st.paused) ? '' : 'none';
+    let statusText = '';
+    if (!st.autoplay_on) statusText = '手动模式（自动下一首已关闭）';
+    else if (!st.scheduler_running) statusText = '待命（点「▶ 播放当前首」后启动计时器）';
+    else if (st.paused) statusText = `⏸ 已暂停，剩余 ${st.remaining_sec} 秒`;
+    else statusText = `⏱ 运行中，还剩 ${st.remaining_sec} 秒`;
+    document.getElementById('autoplayStatusText').textContent = statusText;
+    if (st.scheduler_running) {
+      document.getElementById('autoplayProgressWrap').classList.remove('hidden');
+      const pct = st.total_sec > 0 ? Math.min(100, Math.max(0, Math.round(100 - (st.remaining_sec / st.total_sec) * 100))) : 0;
+      document.getElementById('autoplayProgressBar').style.width = `${pct}%`;
+      const cur = `${escapeHtml(st.current_title || '当前歌曲')} - ${escapeHtml(st.current_artist || '')}` || '当前歌曲';
+      document.getElementById('autoplayProgressText').textContent = `${cur}　还剩 ${Math.round(st.remaining_sec)} 秒 / 总 ${Math.round(st.total_sec)} 秒`;
+    } else {
+      document.getElementById('autoplayProgressBar').style.width = '0%';
+      document.getElementById('autoplayProgressText').textContent = '—';
+      document.getElementById('autoplayProgressWrap').classList.add('hidden');
+    }
+    if (st.mode) {
+      const sel = document.getElementById('playlistModeSelect');
+      if (sel) sel.value = st.mode;
+    }
+  } catch (_ignore) {}
+}
+
+// ── 取消网易云批量下载 ──
+async function cancelBatchDownload() {
+  try {
+    await callPlugin('cancel_download', {}, 5000);
+    showToast('取消信号已发送，当前歌曲下载完成后停止', 'info');
+    document.getElementById('cancelDownloadBtn').classList.add('hidden');
+  } catch (e) { showToast('取消失败：' + e.message, 'error'); }
+}
+
+// 打开页面时如果后台仍在下载，自动开始轮询
+(async function autoPollIfDownloading() {
+  try {
+    const st = await callPlugin('download_status', {}, 5000);
+    if (st && st.running) {
+      document.getElementById('downloadPanel').classList.remove('hidden');
+      document.getElementById('cancelDownloadBtn').classList.remove('hidden');
+      _updateDlUI(st);
+      if (!_dlPollTimer) {
+        _dlPollTimer = setInterval(async () => {
+          try {
+            const cur = await callPlugin('download_status', {}, 5000);
+            _updateDlUI(cur);
+            if (!cur.running) {
+              if (_dlPollTimer) { clearInterval(_dlPollTimer); _dlPollTimer = null; }
+              document.getElementById('cancelDownloadBtn').classList.add('hidden');
+              ['batchDownloadBtn', 'batchDownloadBiliBtn', 'batchDownloadAutoBtn'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.disabled = false;
+              });
+            }
+          } catch (_ignore) {}
+        }, 1500);
+      }
+    }
+  } catch (_ignore) {}
+})();
+
+// ==================== B站收藏夹页面 ====================
+
+let _biliFavFolders = [];
+let _biliFavVideos = [];
+let _biliFavDownloading = false;
+let _biliFavSongs = [];
+let _biliFavCurrentFile = '';
+let _biliFavPlaylistName = '';
+let _biliFavCurrentFolderName = '';
+let _biliFavMenuOpen = -1;
+
+function switchPage(page) {
+  const pages = ['main', 'qq', 'bili-fav'];
+  pages.forEach(p => {
+    const el = document.getElementById('page-' + p);
+    const tab = document.getElementById('tab-' + p);
+    if (p === page) {
+      el.classList.remove('hidden');
+      tab.classList.add('tab-active');
+    } else {
+      el.classList.add('hidden');
+      tab.classList.remove('tab-active');
+    }
+  });
+  // 播放列表是共享的，不需要任何特殊处理——切换页面不重置任何状态
+  if (page === 'bili-fav') {
+    checkBiliCookie();
+    loadBiliFavFileList();
+  }
+  if (page === 'qq') {
+    checkQqCookie();
+    loadQqFileList();
+  }
+}
+
+// ── B站 Cookie 管理 ──
+async function checkBiliCookie() {
+  try {
+    const data = await callPlugin('bili_cookie_status', {}, 5000);
+    const badge = document.getElementById('biliLoginStatus');
+    if (data.has_cookie) {
+      badge.className = 'status-badge online';
+      badge.innerHTML = '<span class="dot"></span>已保存 SESSDATA';
+    } else {
+      badge.className = 'status-badge offline';
+      badge.innerHTML = '<span class="dot"></span>未登录';
+    }
+  } catch (e) {
+    showToast('检查状态失败：' + e.message, 'error');
+  }
+}
+
+async function saveBiliCookie() {
+  const sd = document.getElementById('biliSessdataInput').value.trim();
+  if (!sd) { showToast('请输入 SESSDATA', 'error'); return; }
+  try {
+    await callPlugin('bili_save_cookie', { sessdata: sd }, 10000);
+    showToast('B站 Cookie 已保存', 'success');
+    document.getElementById('biliCookieForm').classList.add('hidden');
+    checkBiliCookie();
+  } catch (e) {
+    showToast('保存失败：' + e.message, 'error');
+  }
+}
+
+// ── 收藏夹列表 ──
+async function loadBiliFavLists() {
+  const btn = document.getElementById('loadFavListsBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 获取中...';
+  try {
+    const data = await callPlugin('bili_get_fav_lists', {}, 30000);
+    _biliFavFolders = data.folders || [];
+    const infoEl = document.getElementById('biliFavUserInfo');
+    if (data.name) {
+      infoEl.textContent = `用户：${data.name}（共 ${data.count} 个收藏夹）`;
+    }
+    const grid = document.getElementById('biliFavFolderGrid');
+    if (_biliFavFolders.length === 0) {
+      grid.innerHTML = '<p class="hint">没有找到收藏夹</p>';
+    } else {
+      grid.innerHTML = _biliFavFolders.map((f, i) => `
+        <div class="fav-folder-item" onclick="loadBiliFavVideos(${f.id}, this)" data-title="${escapeHtml(f.title || '未命名')}" data-count="${f.media_count}">
+          <div class="ff-name">${escapeHtml(f.title || '未命名')}</div>
+          <div class="ff-meta">${f.media_count || 0} 个视频</div>
+        </div>
+      `).join('');
+    }
+    showToast(`找到 ${_biliFavFolders.length} 个收藏夹`, 'success');
+  } catch (e) {
+    showToast('获取收藏夹失败：' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📦 获取收藏夹列表';
+  }
+}
+
+// ── 收藏夹视频列表 ──
+async function loadBiliFavVideos(fid, el) {
+  // 高亮选中的收藏夹
+  document.querySelectorAll('.fav-folder-item').forEach(e => e.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const title = el ? (el.dataset.title || '收藏夹') : '收藏夹';
+  const count = el ? parseInt(el.dataset.count || '0') : 0;
+  _biliFavCurrentFolderName = title;
+
+  const card = document.getElementById('biliFavVideosCard');
+  card.classList.remove('hidden');
+  document.getElementById('biliFavVideosTitle').textContent = `收藏夹：${title}（${count} 个视频）`;
+  document.getElementById('biliFavVideoCount').textContent = '加载中...';
+  document.getElementById('biliFavVideoList').innerHTML = '<p class="hint" style="padding:20px;text-align:center;">加载中...</p>';
+
+  try {
+    const data = await callPlugin('bili_get_fav_videos', { media_id: fid }, 60000);
+    _biliFavVideos = data.videos || [];
+    document.getElementById('biliFavVideoCount').textContent = `共 ${_biliFavVideos.length} 个视频`;
+    renderBiliFavVideos();
+  } catch (e) {
+    document.getElementById('biliFavVideoList').innerHTML = `<p class="hint" style="padding:20px;color:#c9362c;">加载失败：${escapeHtml(e.message)}</p>`;
+    showToast('获取视频列表失败：' + e.message, 'error');
+  }
+}
+
+function renderBiliFavVideos() {
+  const list = document.getElementById('biliFavVideoList');
+  if (_biliFavVideos.length === 0) {
+    list.innerHTML = '<p class="hint" style="padding:20px;text-align:center;">没有视频</p>';
+    return;
+  }
+  list.innerHTML = _biliFavVideos.map((v, i) => {
+    const dur = v.duration ? `${Math.floor(v.duration / 60)}:${String(v.duration % 60).padStart(2, '0')}` : '';
+    return `
+    <div class="fav-video-row">
+      <input type="checkbox" class="fav-video-check" data-idx="${i}" checked>
+      <span style="color:#999;font-size:12px;min-width:30px;">${i + 1}</span>
+      <span class="fv-title" title="${escapeAttr(v.title)}">${escapeHtml(v.title || v.bvid)}</span>
+      <span class="fv-upper">${escapeHtml(v.upper_name || '')}</span>
+      <span class="fv-dur">${dur}</span>
+    </div>
+    `;
+  }).join('');
+}
+
+function selectAllFavVideos() {
+  const checks = document.querySelectorAll('.fav-video-check');
+  const allChecked = Array.from(checks).every(c => c.checked);
+  checks.forEach(c => c.checked = !allChecked);
+}
+
+// ── 导出收藏夹到txt（网易云风格） ──
+async function exportAllFavToTxt() {
+  if (_biliFavVideos.length === 0) { showToast('没有视频可导出', 'error'); return; }
+  await _doExportFavToTxt(_biliFavVideos, _biliFavCurrentFolderName);
+}
+
+async function exportSelectedFavToTxt() {
+  const checks = document.querySelectorAll('.fav-video-check:checked');
+  if (checks.length === 0) { showToast('请先勾选要导出的视频', 'error'); return; }
+  const selected = Array.from(checks).map(c => _biliFavVideos[parseInt(c.dataset.idx)]);
+  await _doExportFavToTxt(selected, _biliFavCurrentFolderName);
+}
+
+async function _doExportFavToTxt(videos, folderName) {
+  showToast(`正在导出「${folderName}」到txt...`, 'info');
+  try {
+    const videosData = videos.map(v => ({
+      bvid: v.bvid || '',
+      title: v.title || v.bvid || '',
+      upper_name: v.upper_name || '',
+    }));
+    const data = await callPlugin('bili_export_fav_to_txt', {
+      folder_name: folderName || '默认收藏夹',
+      videos_json: JSON.stringify(videosData),
+    }, 30000);
+    // 导出后自动加载到歌曲管理
+    _biliFavCurrentFile = data.filename;
+    _biliFavPlaylistName = data.playlist_name;
+    // 自动选中并加载
+    await loadBiliFavFileList();
+    document.getElementById('biliFavFileSelect').value = data.filename;
+    await onBiliFavFileSelected();
+    showToast(`已导出「${data.playlist_name}」共 ${data.song_count} 个视频到 txt`, 'success');
+  } catch (e) {
+    showToast('导出失败：' + e.message, 'error');
+  }
+}
+
+// ── B站收藏夹批量下载（带歌名匹配） ──
+let _biliFavDownloadState = { total: 0, done: 0, success: [], failed: [] };
+let _biliFavCancelFlag = false;
+
+async function batchDownloadBiliFav() {
+  if (_biliFavDownloading) { showToast('正在下载中，请等待完成', 'error'); return; }
+  if (!_biliFavSongs || _biliFavSongs.length === 0) { showToast('歌曲列表为空', 'error'); return; }
+  // 统计待下载
+  let totalTarget = 0;
+  let alreadyHas = 0;
+  for (const s of _biliFavSongs) {
+    const p = (s.stored_name || s.path || '').toString().trim();
+    if (p) { alreadyHas++; continue; }
+    totalTarget++;
+  }
+  if (totalTarget === 0) {
+    showToast(`所有歌曲都已导入音频，无需下载`, 'info');
+    return;
+  }
+  // 先调用 bili_match_existing_songs 匹配已有音频
+  showToast(`正在匹配已下载音频...（待下载 ${totalTarget} 首，已有 ${alreadyHas} 首）`, 'info');
+  let matchedCount = 0;
+  try {
+    const songsToMatch = _biliFavSongs.filter(s => !(s.stored_name || s.path || '').toString().trim()).map(s => ({
+      title: s.name || '',
+      upper_name: s.artists || '',
+      bvid: s.bvid || '',
+    }));
+    if (songsToMatch.length > 0) {
+      const matchData = await callPlugin('bili_match_existing_songs', {
+        songs_json: JSON.stringify(songsToMatch),
+      }, 30000);
+      const matched = matchData.matched || [];
+      matchedCount = matched.length;
+      // 把匹配到的 stored_name 填回 _biliFavSongs
+      for (const m of matched) {
+        const idx = _biliFavSongs.findIndex(s =>
+          _normalizeText(s.name) === _normalizeText(m.title) ||
+          (s.bvid && s.bvid === m.bvid)
+        );
+        if (idx >= 0 && m.stored_name) {
+          _biliFavSongs[idx].stored_name = m.stored_name;
+          _biliFavSongs[idx].path = m.stored_name;
+        }
+      }
+      renderBiliFavSongs();
+    }
+  } catch (e) {
+    showToast('匹配已有音频失败（继续下载）：' + e.message, 'error');
+  }
+  // 重新统计
+  totalTarget = 0;
+  for (const s of _biliFavSongs) {
+    const p = (s.stored_name || s.path || '').toString().trim();
+    if (!p) totalTarget++;
+  }
+  if (totalTarget === 0) {
+    showToast(`匹配后所有歌曲都有音频了！（匹配 ${matchedCount} 首）`, 'success');
+    return;
+  }
+  showToast(`匹配 ${matchedCount} 首已有音频，开始下载剩余 ${totalTarget} 首...`, 'info');
+  // 开始下载
+  _biliFavDownloading = true;
+  _biliFavCancelFlag = false;
+  _biliFavDownloadState = { total: totalTarget, done: 0, success: [], failed: [] };
+  document.getElementById('biliFavDownloadPanel').classList.remove('hidden');
+  document.getElementById('biliFavBatchDownloadBtn').disabled = true;
+  document.getElementById('cancelBiliFavDownloadBtn').classList.remove('hidden');
+  _updateBiliFavProgress();
+  for (let i = 0; i < _biliFavSongs.length; i++) {
+    if (_biliFavCancelFlag) break;
+    const s = _biliFavSongs[i];
+    const p = (s.stored_name || s.path || '').toString().trim();
+    if (p) continue; // 已有音频
+    document.getElementById('biliFavCurrentInfo').textContent =
+      `[${_biliFavDownloadState.done + 1}/${totalTarget}]  ${s.name || ''} - ${s.artists || ''}`;
+    try {
+      const bvid = s.bvid || '';
+      if (bvid) {
+        const data = await callPlugin('bili_download_by_bvid', {
+          bvid: bvid,
+          title: s.name || '',
+          artist: s.artists || '',
+          song_id: '',
+        }, 600000);
+        if (data.stored_name) {
+          s.stored_name = data.stored_name;
+          s.path = data.stored_name;
+          _biliFavDownloadState.success.push({ title: s.name, stored_name: data.stored_name });
+        }
+      } else {
+        _biliFavDownloadState.failed.push({ title: s.name, reason: '无BV号' });
+      }
+    } catch (e) {
+      _biliFavDownloadState.failed.push({ title: s.name, reason: e.message });
+    }
+    _biliFavDownloadState.done++;
+    _updateBiliFavProgress();
+    renderBiliFavSongs();
+  }
+  _biliFavDownloading = false;
+  _biliFavCancelFlag = false;
+  document.getElementById('biliFavBatchDownloadBtn').disabled = false;
+  document.getElementById('cancelBiliFavDownloadBtn').classList.add('hidden');
+  const sc = _biliFavDownloadState.success.length;
+  const fc = _biliFavDownloadState.failed.length;
+  showToast(`下载完成：✅${sc} ❌${fc}（匹配已有 ${matchedCount} 首），记得点「💾保存」`, sc > 0 ? 'success' : 'info');
+}
+
+function cancelBiliFavDownload() {
+  if (!_biliFavDownloading) { showToast('当前没有下载任务', 'error'); return; }
+  _biliFavCancelFlag = true;
+  showToast('取消信号已发送，当前视频下载完成后停止', 'info');
+}
+
+function _updateBiliFavProgress() {
+  const st = _biliFavDownloadState;
+  const total = st.total;
+  const done = st.done;
+  const pct = total > 0 ? Math.round(done * 100 / total) : 0;
+  document.getElementById('biliFavProgressText').textContent = `${done} / ${total}（${pct}%）`;
+  document.getElementById('biliFavProgressBar').style.width = `${pct}%`;
+  document.getElementById('biliFavSuccessCount').textContent = st.success.length;
+  document.getElementById('biliFavFailedCount').textContent = st.failed.length;
+  const failedListEl = document.getElementById('biliFavFailedList');
+  if (st.failed.length > 0) {
+    failedListEl.classList.remove('hidden');
+    failedListEl.innerHTML =
+      `<div style="font-weight:500;margin-bottom:4px;">❌ 失败列表：</div>` +
+      st.failed.map((x, i) =>
+        `<div style="margin:2px 0;">${i+1}. ${escapeHtml(x.title || '')} —— <span style="color:#c9362c;">${escapeHtml(x.reason || '')}</span></div>`
+      ).join('');
+  } else {
+    failedListEl.classList.add('hidden');
+    failedListEl.innerHTML = '';
+  }
+}
+
+function _normalizeText(text) {
+  return String(text || '').toLowerCase().replace(/[\s\W_]+/g, '');
+}
+
+// ══════════════════════════════════════════════
+// B站收藏夹歌曲管理
+// ══════════════════════════════════════════════
+
+async function loadBiliFavFileList() {
+  try {
+    const data = await callPlugin('list_exported_files', {}, 10000);
+    const sel = document.getElementById('biliFavFileSelect');
+    const files = (data.files || []).filter(f => f.startsWith('B站收藏夹_'));
+    sel.innerHTML = '<option value="">选择已保存的歌单...</option>' +
+      files.map(f => `<option value="${escapeAttr(f)}" ${f === _biliFavCurrentFile ? 'selected' : ''}>${escapeHtml(f)}</option>`).join('');
+  } catch (e) { /* 忽略 */ }
+}
+
+async function onBiliFavFileSelected() {
+  const filename = document.getElementById('biliFavFileSelect').value;
+  if (!filename) return;
+  try {
+    const data = await callPlugin('load_song_list', { filename }, 30000);
+    _biliFavCurrentFile = filename;
+    _biliFavSongs = data.songs || [];
+    _biliFavPlaylistName = data.playlist_name || '';
+    renderBiliFavSongs();
+    document.getElementById('biliFavSaveBtn').classList.remove('hidden');
+    document.getElementById('biliFavAddSongBtn').classList.remove('hidden');
+    document.getElementById('biliFavBatchDownloadBtn').classList.remove('hidden');
+    document.getElementById('biliFavBatchAddPlaylistBtn').classList.remove('hidden');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function renderBiliFavSongs() {
+  document.getElementById('biliFavSongListInfo').textContent =
+    _biliFavPlaylistName
+      ? `歌单「${_biliFavPlaylistName}」共 ${_biliFavSongs.length} 首`
+      : `共 ${_biliFavSongs.length} 首`;
+  const wrap = document.getElementById('biliFavSongTableWrap');
+  const body = document.getElementById('biliFavSongTableBody');
+  if (_biliFavSongs.length === 0) {
+    wrap.classList.remove('hidden');
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:20px;">暂无歌曲</td></tr>';
+    return;
+  }
+  wrap.classList.remove('hidden');
+  body.innerHTML = _biliFavSongs.map((s, i) => {
+    const hasPath = (s.path || s.stored_name || '').toString().trim() !== '';
+    const bvidTag = s.bvid ? `<span class="song-id-tag" title="B站BV号">${escapeHtml(s.bvid)}</span>` : '';
+    return `
+    <tr data-idx="${i}" ondblclick="playBiliFavSong(${i})" style="cursor:pointer;">
+      <td>${i + 1}</td>
+      <td>
+        ${escapeHtml(s.name || '')}
+        ${bvidTag}
+        ${hasPath ? '' : '<span class="song-id-tag" style="color:#c9362c;background:#fff2f2;border-color:#e49b9b;" title="此歌曲没有音源文件">无音源</span>'}
+      </td>
+      <td>${escapeHtml(s.artists || '未知')}</td>
+      <td class="path-cell ${hasPath ? '' : 'empty'}" title="${escapeAttr(s.path || s.stored_name || '')}">${hasPath ? escapeHtml(s.path || s.stored_name) : '需导入路径'}</td>
+      <td><button class="btn-ghost btn-sm" onclick="importBiliFavPath(${i})">导入</button></td>
+      <td><button class="btn-success btn-sm" onclick="playBiliFavSong(${i})" ${hasPath ? '' : 'disabled'}>▶</button></td>
+      <td><button class="btn-primary btn-sm" onclick="addBiliFavToPlaylist(${i})" ${hasPath ? '' : 'disabled'} title="添加到播放列表">+ 列表</button></td>
+      <td>
+        <div class="dropdown">
+          <button class="btn-icon" onclick="toggleBiliFavMenu(${i})">⋯</button>
+          <div class="dropdown-menu" id="biliFavMenu-${i}">
+            <button onclick="downloadBiliFavById(${i})" title="从B站重新下载音源（按BV号）">⬇ 重新下载</button>
+            <button onclick="deleteBiliFavSong(${i})" class="danger">删除歌曲</button>
+          </div>
+        </div>
+      </td>
+    </tr>
+  `;}).join('');
+}
+
+async function saveBiliFavSongs() {
+  if (!_biliFavCurrentFile) { showToast('没有可保存的歌单文件', 'error'); return; }
+  try {
+    await callPlugin('save_song_list', {
+      filename: _biliFavCurrentFile,
+      playlist_name: _biliFavPlaylistName,
+      songs: JSON.stringify(_biliFavSongs),
+    }, 30000);
+    showToast('保存成功', 'success');
+    loadBiliFavFileList();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function openBiliFavAddSongModal() {
+  _addSongTarget = 'bili-fav';
+  document.getElementById('newSongName').value = '';
+  document.getElementById('newSongArtists').value = '';
+  document.getElementById('newSongPath').value = '';
+  document.getElementById('addSongModal').classList.add('show');
+}
+
+async function batchAddBiliFavToPlaylist() {
+  if (!_biliFavSongs || _biliFavSongs.length === 0) { showToast('请先加载歌曲列表', 'error'); return; }
+  let withAudio = 0, withoutAudio = 0;
+  for (const s of _biliFavSongs) {
+    if ((s.stored_name || s.path || '').toString().trim()) withAudio++;
+    else withoutAudio++;
+  }
+  if (withAudio === 0) {
+    showToast(`歌单里一首有音频的都没有（${withoutAudio} 首无音源被跳过），请先下载或导入音频`, 'error');
+    return;
+  }
+  showToast(`正在追加到播放列表...（${withAudio} 首有音源）`, 'info');
+  try {
+    const data = await callPlugin('playlist_add_all', {
+      songs: JSON.stringify(_biliFavSongs),
+      replace: false,
+    }, 30000);
+    showToast(data.message || `共加入 ${data.added_count} 首`, 'success');
+    setTimeout(loadPlaylist, 300);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── B站歌曲单首操作 ──
+
+async function playBiliFavSong(idx) {
+  if (!_biliFavSongs[idx]) return;
+  const song = _biliFavSongs[idx];
+  const path = song.path || song.stored_name;
+  if (!path) { showToast('该歌曲未导入音源，请先导入', 'error'); return; }
+  showToast(`正在推送: ${song.name}...`);
+  try {
+    const data = await callPlugin('play_song', {
+      title: song.name || '未知歌曲',
+      artist: song.artists || '未知',
+      stored_name: path,
+    }, 30000);
+    showToast(data.message || '已推送到 N.E.K.O 播放', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function importBiliFavPath(idx) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'audio/*,.mp3,.flac,.wav,.ogg,.m4a,.aac,.ape,.wma';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    showToast(`正在上传: ${file.name}...`);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUri = reader.result;
+        const data = await callPlugin('upload_song_file', {
+          audio_base64: dataUri,
+          filename: file.name,
+        }, 60000);
+        _biliFavSongs[idx].path = data.stored_name;
+        _biliFavSongs[idx].stored_name = data.stored_name;
+        renderBiliFavSongs();
+        showToast(`已导入: ${file.name}`, 'success');
+      };
+      reader.onerror = () => showToast('读取文件失败', 'error');
+      reader.readAsDataURL(file);
+    } catch (e) { showToast(e.message, 'error'); }
+  };
+  input.click();
+}
+
+function deleteBiliFavSong(idx) {
+  _biliFavSongs.splice(idx, 1);
+  _biliFavMenuOpen = -1;
+  renderBiliFavSongs();
+  showToast('已删除', 'success');
+}
+
+async function addBiliFavToPlaylist(idx) {
+  if (!_biliFavSongs[idx]) return;
+  const song = _biliFavSongs[idx];
+  const path = song.path || song.stored_name;
+  if (!path) { showToast('该歌曲未导入音源，请先导入', 'error'); return; }
+  try {
+    const data = await callPlugin('playlist_add', {
+      title: song.name || '未知歌曲',
+      artist: song.artists || '未知艺术家',
+      stored_name: path,
+    }, 15000);
+    showToast(data.success ? `已加入播放列表：${song.name}` : '加入失败', data.success ? 'success' : 'error');
+    await loadPlaylist();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function toggleBiliFavMenu(idx) {
+  if (_biliFavMenuOpen >= 0) {
+    const old = document.getElementById(`biliFavMenu-${_biliFavMenuOpen}`);
+    if (old) old.classList.remove('show');
+  }
+  if (_biliFavMenuOpen === idx) { _biliFavMenuOpen = -1; return; }
+  const menu = document.getElementById(`biliFavMenu-${idx}`);
+  if (menu) menu.classList.add('show');
+  _biliFavMenuOpen = idx;
+}
+document.addEventListener('click', (e) => {
+  if (_biliFavMenuOpen >= 0 && !e.target.closest('.dropdown')) {
+    const old = document.getElementById(`biliFavMenu-${_biliFavMenuOpen}`);
+    if (old) old.classList.remove('show');
+    _biliFavMenuOpen = -1;
+  }
+});
+
+// B站歌曲重新下载（按BV号）
+async function downloadBiliFavById(idx) {
+  const song = _biliFavSongs[idx];
+  if (!song) return;
+  _biliFavMenuOpen = -1;
+  if (!song.bvid) { showToast('该歌曲没有BV号，无法重新下载', 'error'); return; }
+  showToast(`正在下载: ${song.name} (${song.bvid})...`);
+  try {
+    const data = await callPlugin('bili_download_by_bvid', {
+      bvid: song.bvid,
+      title: song.name,
+      artist: song.artists,
+    }, 120000);
+    if (data.stored_name) {
+      _biliFavSongs[idx].path = data.stored_name;
+      _biliFavSongs[idx].stored_name = data.stored_name;
+      renderBiliFavSongs();
+      showToast(`下载成功: ${song.name}`, 'success');
+    } else {
+      showToast(data.message || '下载失败', 'error');
+    }
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ==================== QQ音乐页面 ====================
+
+let _qqSongs = [];
+let _qqCurrentFile = '';
+let _qqPlaylistName = '';
+let _qqMenuOpen = -1;
+
+// ── QQ音乐 Cookie 管理 ──
+async function checkQqCookie() {
+  try {
+    const data = await callPlugin('qq_cookie_status', {}, 5000);
+    const badge = document.getElementById('qqLoginStatus');
+    if (data.has_cookie) {
+      badge.className = 'status-badge online';
+      badge.innerHTML = '<span class="dot"></span>已登录 (QQ:' + escapeHtml(data.uin || '') + ')';
+    } else {
+      badge.className = 'status-badge offline';
+      badge.innerHTML = '<span class="dot"></span>未登录';
+    }
+  } catch (e) {
+    showToast('检查状态失败：' + e.message, 'error');
+  }
+}
+
+async function saveQqCookie() {
+  const uin = document.getElementById('qqUinInput').value.trim();
+  const qmKeyst = document.getElementById('qqKeystInput').value.trim();
+  if (!uin || !qmKeyst) { showToast('请输入 QQ号 和 qm_keyst', 'error'); return; }
+  try {
+    await callPlugin('qq_save_cookie', { uin, qm_keyst: qmKeyst }, 10000);
+    showToast('QQ音乐 Cookie 已保存', 'success');
+    document.getElementById('qqCookieForm').classList.add('hidden');
+    checkQqCookie();
+  } catch (e) {
+    showToast('保存失败：' + e.message, 'error');
+  }
+}
+
+// ── QQ音乐歌单列表 ──
+async function loadQqPlaylists() {
+  const btn = document.getElementById('loadQqPlaylistsBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 获取中...';
+  try {
+    const data = await callPlugin('qq_get_playlists', {}, 30000);
+    const folders = data.folders || [];
+    const infoEl = document.getElementById('qqPlaylistInfo');
+    if (data.name) {
+      infoEl.textContent = `${data.name}（共 ${data.count} 个歌单）`;
+    }
+    const grid = document.getElementById('qqPlaylistGrid');
+    if (folders.length === 0) {
+      grid.innerHTML = '<p class="hint">没有找到歌单，可能 cookie 已过期</p>';
+    } else {
+      grid.innerHTML = folders.map(p => `
+        <div class="playlist-item" onclick="exportQqPlaylist('${escapeAttr(p.id)}','${escapeAttr(p.name)}')">
+          <div class="pl-name">${escapeHtml(p.name || '未命名')}</div>
+          <div class="pl-meta">${p.track_count || 0} 首</div>
+          <div style="margin-top:8px;"><button class="btn-primary btn-sm" onclick="event.stopPropagation();exportQqPlaylist('${escapeAttr(p.id)}','${escapeAttr(p.name)}')">导出 txt</button></div>
+        </div>
+      `).join('');
+    }
+    showToast(`找到 ${folders.length} 个歌单`, 'success');
+  } catch (e) {
+    showToast('获取歌单失败：' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📦 获取歌单列表';
+  }
+}
+
+async function exportQqPlaylist(pid, name) {
+  showToast(`正在导出「${name}」...`);
+  try {
+    const data = await callPlugin('qq_export_playlist', { playlist_id: String(pid) }, 120000);
+    showToast(`已导出「${data.playlist_name}」共 ${data.song_count} 首到 txt`, 'success');
+    loadQqFileList();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── QQ音乐文件列表 ──
+async function loadQqFileList() {
+  try {
+    const data = await callPlugin('list_exported_files', {}, 10000);
+    const sel = document.getElementById('qqFileSelect');
+    const files = (data.files || []).filter(f => f.startsWith('QQ音乐_'));
+    sel.innerHTML = '<option value="">选择已导出的 txt 文件...</option>' +
+      files.map(f => `<option value="${escapeAttr(f)}" ${f === _qqCurrentFile ? 'selected' : ''}>${escapeHtml(f)}</option>`).join('');
+  } catch (e) { /* 忽略 */ }
+}
+
+async function onQqFileSelected() {
+  const filename = document.getElementById('qqFileSelect').value;
+  if (!filename) return;
+  try {
+    const data = await callPlugin('load_song_list', { filename }, 30000);
+    _qqCurrentFile = filename;
+    _qqSongs = data.songs || [];
+    _qqPlaylistName = data.playlist_name || '';
+    renderQqSongs();
+    document.getElementById('qqAddSongBtn').classList.remove('hidden');
+    document.getElementById('qqSaveBtn').classList.remove('hidden');
+    document.getElementById('qqBatchDownloadBtn').classList.remove('hidden');
+    document.getElementById('qqBatchAddPlaylistBtn').classList.remove('hidden');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function renderQqSongs() {
+  document.getElementById('qqSongListInfo').textContent =
+    _qqPlaylistName ? `歌单「${_qqPlaylistName}」共 ${_qqSongs.length} 首` : `共 ${_qqSongs.length} 首`;
+  const wrap = document.getElementById('qqSongTableWrap');
+  const body = document.getElementById('qqSongTableBody');
+  if (_qqSongs.length === 0) {
+    wrap.classList.remove('hidden');
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:20px;">暂无歌曲</td></tr>';
+    return;
+  }
+  wrap.classList.remove('hidden');
+  body.innerHTML = _qqSongs.map((s, i) => {
+    const hasPath = (s.path || s.stored_name || '').toString().trim() !== '';
+    const hasId = (s.song_id || '').toString().trim() !== '';
+    return `
+    <tr data-idx="${i}" ondblclick="playQqSong(${i})" style="cursor:pointer;">
+      <td>${i + 1}</td>
+      <td>
+        ${escapeHtml(s.name || '')}
+        ${hasId ? `<span class="song-id-tag" title="QQ音乐ID: ${escapeAttr(s.song_id)}">ID: ${escapeHtml(s.song_id)}</span>` : '<span class="song-id-tag" style="color:#c9362c;background:#fff2f2;border-color:#e49b9b;" title="无歌曲ID">无ID</span>'}
+        ${hasPath ? '' : ''}
+      </td>
+      <td>${escapeHtml(s.artists || '未知')}</td>
+      <td class="path-cell ${hasPath ? '' : 'empty'}" title="${escapeAttr(s.path || s.stored_name || '')}">${hasPath ? escapeHtml(s.path || s.stored_name) : '需导入路径'}</td>
+      <td><button class="btn-ghost btn-sm" onclick="importQqPath(${i})">导入</button></td>
+      <td><button class="btn-success btn-sm" onclick="playQqSong(${i})" ${hasPath ? '' : 'disabled'}>▶</button></td>
+      <td><button class="btn-primary btn-sm" onclick="addQqToPlaylist(${i})" ${hasPath ? '' : 'disabled'} title="添加到播放列表">+ 列表</button></td>
+      <td>
+        <div class="dropdown">
+          <button class="btn-icon" onclick="toggleQqMenu(${i})">⋯</button>
+          <div class="dropdown-menu" id="qqMenu-${i}">
+            <button onclick="downloadQqById(${i})" ${hasId ? '' : 'disabled'} title="从QQ音乐解析站下载">⬇ QQ音乐解析下载</button>
+            <button onclick="deleteQqSong(${i})" class="danger">删除歌曲</button>
+          </div>
+        </div>
+      </td>
+    </tr>
+  `;}).join('');
+}
+
+async function saveQqSongList() {
+  if (!_qqCurrentFile) { showToast('没有可保存的歌单文件', 'error'); return; }
+  try {
+    await callPlugin('save_song_list', {
+      filename: _qqCurrentFile,
+      playlist_name: _qqPlaylistName,
+      songs: JSON.stringify(_qqSongs),
+    }, 30000);
+    showToast('保存成功', 'success');
+    loadQqFileList();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function showQqAddSongModal() {
+  _addSongTarget = 'qq';
+  document.getElementById('newSongName').value = '';
+  document.getElementById('newSongArtists').value = '';
+  document.getElementById('newSongPath').value = '';
+  document.getElementById('addSongModal').classList.add('show');
+}
+
+async function batchAddQqToPlaylist() {
+  if (!_qqSongs || _qqSongs.length === 0) { showToast('请先加载歌曲列表', 'error'); return; }
+  let withAudio = 0;
+  for (const s of _qqSongs) {
+    if ((s.stored_name || s.path || '').toString().trim()) withAudio++;
+  }
+  if (withAudio === 0) { showToast('歌单里一首有音频的都没有，请先下载', 'error'); return; }
+  showToast(`正在追加到播放列表...（${withAudio} 首有音源）`, 'info');
+  try {
+    const data = await callPlugin('playlist_add_all', {
+      songs: JSON.stringify(_qqSongs),
+      replace: false,
+    }, 30000);
+    showToast(data.message || `共加入 ${data.added_count} 首`, 'success');
+    setTimeout(loadPlaylist, 300);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── QQ音乐单曲操作 ──
+async function playQqSong(idx) {
+  if (!_qqSongs[idx]) return;
+  const song = _qqSongs[idx];
+  const path = song.path || song.stored_name;
+  if (!path) { showToast('该歌曲未导入音源，请先导入', 'error'); return; }
+  showToast(`正在推送: ${song.name}...`);
+  try {
+    const data = await callPlugin('play_song', {
+      title: song.name || '未知歌曲',
+      artist: song.artists || '未知',
+      stored_name: path,
+    }, 30000);
+    showToast(data.message || '已推送到 N.E.K.O 播放', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function importQqPath(idx) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'audio/*,.mp3,.flac,.wav,.ogg,.m4a,.aac,.ape,.wma';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    showToast(`正在上传: ${file.name}...`);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUri = reader.result;
+        const data = await callPlugin('upload_song_file', {
+          audio_base64: dataUri,
+          filename: file.name,
+        }, 60000);
+        _qqSongs[idx].path = data.stored_name;
+        _qqSongs[idx].stored_name = data.stored_name;
+        renderQqSongs();
+        showToast(`已导入: ${file.name}`, 'success');
+      };
+      reader.onerror = () => showToast('读取文件失败', 'error');
+      reader.readAsDataURL(file);
+    } catch (e) { showToast(e.message, 'error'); }
+  };
+  input.click();
+}
+
+function deleteQqSong(idx) {
+  _qqSongs.splice(idx, 1);
+  _qqMenuOpen = -1;
+  renderQqSongs();
+  showToast('已删除', 'success');
+}
+
+async function addQqToPlaylist(idx) {
+  if (!_qqSongs[idx]) return;
+  const song = _qqSongs[idx];
+  const path = song.path || song.stored_name;
+  if (!path) { showToast('该歌曲未导入音源，请先导入', 'error'); return; }
+  try {
+    const data = await callPlugin('playlist_add', {
+      title: song.name || '未知歌曲',
+      artist: song.artists || '未知艺术家',
+      stored_name: path,
+    }, 15000);
+    showToast(data.success ? `已加入播放列表：${song.name}` : '加入失败', data.success ? 'success' : 'error');
+    await loadPlaylist();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function toggleQqMenu(idx) {
+  if (_qqMenuOpen >= 0) {
+    const old = document.getElementById(`qqMenu-${_qqMenuOpen}`);
+    if (old) old.classList.remove('show');
+  }
+  if (_qqMenuOpen === idx) { _qqMenuOpen = -1; return; }
+  const menu = document.getElementById(`qqMenu-${idx}`);
+  if (menu) menu.classList.add('show');
+  _qqMenuOpen = idx;
+}
+document.addEventListener('click', (e) => {
+  if (_qqMenuOpen >= 0 && !e.target.closest('.dropdown')) {
+    const old = document.getElementById(`qqMenu-${_qqMenuOpen}`);
+    if (old) old.classList.remove('show');
+    _qqMenuOpen = -1;
+  }
+});
+
+async function downloadQqById(idx) {
+  const s = _qqSongs[idx];
+  if (!s) return;
+  _qqMenuOpen = -1;
+  const songId = (s.song_id || '').toString().trim();
+  if (!songId) { showToast('该歌曲没有歌曲ID，无法下载', 'error'); return; }
+  showToast(`开始下载「${s.name}」 (QQ音乐)...`, 'info');
+  try {
+    const data = await callPlugin('qq_download_song', {
+      song_id: songId,
+      title: s.name || '未知歌曲',
+      artist: s.artists || '',
+    }, 600000);
+    _qqSongs[idx] = Object.assign({}, _qqSongs[idx], {
+      path: data.stored_name,
+      stored_name: data.stored_name,
+    });
+    renderQqSongs();
+    showToast(`${data.message || '下载成功'}，记得点「💾保存」`, 'success');
+  } catch (e) {
+    showToast(`下载失败：${e.message}`, 'error');
+  }
+}
+
+// ── QQ音乐批量下载 ──
+let _qqDlPollTimer = null;
+async function batchDownloadQq() {
+  if (!_qqSongs || _qqSongs.length === 0) { showToast('歌曲列表为空', 'error'); return; }
+  let totalTarget = 0;
+  for (const s of _qqSongs) {
+    const sid = (s.song_id || '').toString().trim();
+    const p = (s.stored_name || s.path || '').toString().trim();
+    if (p) continue;
+    if (!sid) continue;
+    totalTarget++;
+  }
+  if (totalTarget === 0) {
+    showToast('没有可下载目标（可能已有音频或缺少歌曲ID）', 'error');
+    return;
+  }
+  document.getElementById('qqDownloadPanel').classList.remove('hidden');
+  document.getElementById('cancelQqDownloadBtn').classList.remove('hidden');
+  document.getElementById('qqBatchDownloadBtn').disabled = true;
+  _updateQqDlUI({ total: totalTarget, done: 0, success: [], failed: [], current_title: '', current_artist: '', current_index: 0, current_stage: '', running: true, songs: null });
+  // 启动后台批量下载
+  try {
+    const r = await callPlugin('qq_batch_download', {
+      songs: JSON.stringify(_qqSongs),
+      save_filename: _qqCurrentFile || '',
+      playlist_name: _qqPlaylistName || '',
+    }, 10000);
+    showToast(r.message || '已启动QQ音乐批量下载', r.started === false ? 'info' : 'success');
+  } catch (e) {
+    showToast('启动批量下载失败：' + e.message, 'error');
+    document.getElementById('qqBatchDownloadBtn').disabled = false;
+    document.getElementById('cancelQqDownloadBtn').classList.add('hidden');
+    return;
+  }
+  // 轮询进度
+  if (_qqDlPollTimer) { clearInterval(_qqDlPollTimer); _qqDlPollTimer = null; }
+  let _finished = false;
+  _qqDlPollTimer = setInterval(async () => {
+    try {
+      const cur = await callPlugin('download_status', {}, 5000);
+      _updateQqDlUI(cur);
+      if (!cur.running) {
+        if (_qqDlPollTimer) { clearInterval(_qqDlPollTimer); _qqDlPollTimer = null; }
+        document.getElementById('cancelQqDownloadBtn').classList.add('hidden');
+        document.getElementById('qqBatchDownloadBtn').disabled = false;
+        if (!_finished) {
+          _finished = true;
+          const sc = (cur.success || []).length;
+          const fc = (cur.failed || []).length;
+          if (fc > 0) showToast(`批量下载完成：✅${sc} ✗${fc}，记得点「💾保存」`, 'info');
+          else showToast(`批量下载全部 ${sc} 首成功！记得点「💾保存」`, 'success');
+        }
+      }
+    } catch (_ignore) {}
+  }, 1500);
+}
+
+function _updateQqDlUI(st) {
+  if (!st) return;
+  const total = st.total || 0;
+  const done = st.done || 0;
+  const pct = total > 0 ? Math.round(done * 100 / total) : 0;
+  document.getElementById('qqDlProgressText').textContent = `${done} / ${total}（${pct}%）`;
+  document.getElementById('qqDlProgressBar').style.width = `${pct}%`;
+  const stage = st.current_stage || '';
+  let stageText = stage === 'parsing' ? '🔍 解析中...' : stage === 'downloading' ? '💾 下载中...' : stage === 'done' ? '✅ 完成' : st.running ? '⚡ 准备中...' : '待机';
+  const curTitle = st.current_title || '';
+  const curArtist = st.current_artist || '';
+  if (curTitle) {
+    document.getElementById('qqDlCurrentInfo').textContent = `${stageText} ${curTitle} - ${curArtist || '未知'}`;
+  } else {
+    document.getElementById('qqDlCurrentInfo').textContent = stageText;
+  }
+  const successCount = Array.isArray(st.success) ? st.success.length : 0;
+  const failedList = Array.isArray(st.failed) ? st.failed : [];
+  document.getElementById('qqDlSuccessCount').textContent = successCount;
+  document.getElementById('qqDlFailedCount').textContent = failedList.length;
+  const failedListEl = document.getElementById('qqDlFailedList');
+  if (failedList.length > 0) {
+    failedListEl.classList.remove('hidden');
+    failedListEl.innerHTML = `<div style="font-weight:500;margin-bottom:4px;">❌ 失败列表：</div>` +
+      failedList.map((x, i) => `<div style="margin:2px 0;">${i+1}. ${escapeHtml(x.title || '未知')} - ${escapeHtml(x.artist || '')} —— <span style="color:#c9362c;">${escapeHtml(x.reason || '')}</span></div>`).join('');
+  } else {
+    failedListEl.classList.add('hidden');
+    failedListEl.innerHTML = '';
+  }
+  // 更新歌曲列表路径
+  if (Array.isArray(st.songs) && st.songs.length > 0 && _qqSongs && _qqSongs.length > 0) {
+    let changed = false;
+    const newSongs = st.songs;
+    const len = Math.min(_qqSongs.length, newSongs.length);
+    for (let i = 0; i < len; i++) {
+      const ns = newSongs[i] || {};
+      const os = _qqSongs[i] || {};
+      const newStored = (ns.stored_name || ns.path || '').toString().trim();
+      const oldStored = (os.stored_name || os.path || '').toString().trim();
+      if (newStored && newStored !== oldStored) {
+        _qqSongs[i] = Object.assign({}, os, ns, { stored_name: newStored, path: newStored });
+        changed = true;
+      }
+    }
+    if (changed) renderQqSongs();
+  }
+}
+
+</script>
+</body>
+</html>

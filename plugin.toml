@@ -1,0 +1,23 @@
+[plugin]
+id = "custom_music_list"
+name = "音乐歌单管理"
+type = "plugin"
+description = "网易云/QQ音乐/B站收藏夹歌单导出 + 歌曲管理与播放列表 + LLM歌单轮播（三平台播放列表互通）"
+short_description = "网易云/QQ音乐/B站歌单导出与歌曲管理，支持 LLM 点歌轮播"
+keywords = ["音乐", "歌单", "music", "playlist", "网易云", "QQ音乐", "B站", "bilibili", "下载", "点歌", "听歌"]
+version = "0.3.0"
+entry = "plugin.plugins.custom_music_list:CustomMusicListPlugin"
+
+[plugin.author]
+name = "dustnunknown"
+
+[plugin.sdk]
+recommended = ">=0.1.0,<0.2.0"
+supported = ">=0.1.0,<0.3.0"
+
+[plugin_runtime]
+enabled = true
+auto_start = false
+
+[plugin.store]
+enabled = true
