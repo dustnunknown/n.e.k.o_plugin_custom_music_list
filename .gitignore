@@ -28,7 +28,10 @@ store.db
 # ── 系统 / 编辑器 ──
 .DS_Store
 Thumbs.db
-.vscode/
+# 保留 check --release 必需的 .vscode 脚手架，忽略其余（如 launch.json 等可能含本地路径）
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
 .idea/
 
 # ── WorkBuddy 内部目录（非插件逻辑，禁止提交）──

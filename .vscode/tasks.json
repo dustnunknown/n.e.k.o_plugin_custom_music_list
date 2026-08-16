@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "N.E.K.O: check custom_music_list",
+      "type": "shell",
+      "command": "uv run python -m plugin.neko_plugin_cli.cli check custom_music_list",
+      "options": {
+        "cwd": "${config:nekoPlugin.repoRoot}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "N.E.K.O: sync custom_music_list",
+      "type": "shell",
+      "command": "uv run --with pip python -m plugin.neko_plugin_cli.cli sync custom_music_list --clean",
+      "options": {
+        "cwd": "${config:nekoPlugin.repoRoot}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "N.E.K.O: check -r custom_music_list",
+      "type": "shell",
+      "command": "uv run python -m plugin.neko_plugin_cli.cli check -r custom_music_list",
+      "options": {
+        "cwd": "${config:nekoPlugin.repoRoot}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "N.E.K.O: build custom_music_list",
+      "type": "shell",
+      "command": "uv run python -m plugin.neko_plugin_cli.cli build custom_music_list",
+      "options": {
+        "cwd": "${config:nekoPlugin.repoRoot}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
