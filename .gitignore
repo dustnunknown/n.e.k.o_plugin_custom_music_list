@@ -36,3 +36,18 @@ Thumbs.db
 
 # ── WorkBuddy 内部目录（非插件逻辑，禁止提交）──
 .workbuddy/
+
+# ── 运行时下载 / 生成产物（禁止提交）──
+# 下载的音频、UI 上传文件落在 <config_dir>/static/uploads/（见 _uploads_dir()）
+static/uploads/
+# 音频后缀兜底：任何位置的下载音频都不进仓库
+*.mp3
+*.m4a
+*.wav
+*.flac
+*.ogg
+*.aac
+*.ape
+*.wma
+# 运行时可能生成的 JS / 缓存（当前仓库无受控 .js，可安全忽略）
+*.js
